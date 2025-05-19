@@ -30,28 +30,48 @@ class Player(pygame.sprite.Sprite):
     
     def update(self):
         self.movement()
-        self.rect.x += self.x_change
-        self.rect.y += self.y_change
 
+        # Gerak horizontal dulu
+        self.rect.x += self.x_change
+        self.collide_blocks('x')
+
+        # Lalu gerak vertikal
+        self.rect.y += self.y_change
+        self.collide_blocks('y')
+
+        # Reset perubahan
         self.x_change = 0
         self.y_change = 0
-
-
 
     def movement(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            self.x_change -= PLAYER_SPEED
+            self.x_change = -PLAYER_SPEED
             self.facing = 'left'
         if keys[pygame.K_RIGHT]:
             self.x_change = PLAYER_SPEED
             self.facing = 'right'
         if keys[pygame.K_UP]:
-            self.y_change -= PLAYER_SPEED
+            self.y_change = -PLAYER_SPEED
             self.facing = 'up'
         if keys[pygame.K_DOWN]:
             self.y_change = PLAYER_SPEED
             self.facing = 'down'
+
+    def collide_blocks(self, direction):
+        hits = pygame.sprite.spritecollide(self, self.game.block, False)
+        if hits:
+            if direction == 'x':
+                if self.x_change > 0:  # ke kanan
+                    self.rect.right = hits[0].rect.left
+                if self.x_change < 0:  # ke kiri
+                    self.rect.left = hits[0].rect.right
+            elif direction == 'y':
+                if self.y_change > 0:  # ke bawah
+                    self.rect.bottom = hits[0].rect.top
+                if self.y_change < 0:  # ke atas
+                    self.rect.top = hits[0].rect.bottom
+
 
 class Block(pygame.sprite.Sprite):
     def __init__(self, game, x, y):
