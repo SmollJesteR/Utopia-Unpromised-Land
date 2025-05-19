@@ -1,6 +1,23 @@
 import pygame
+import random
 
 pygame.init()
+
+pygame.mixer.init()
+
+bgm_list = [
+    'Assets/Music/Battle/B1.wav',
+    'Assets/Music/Battle/B2.wav',
+    'Assets/Music/Battle/B3.wav',
+]
+
+def play_random_bgm():
+    track = random.choice(bgm_list)
+    pygame.mixer.music.load(track)
+    pygame.mixer.music.set_volume(0.2)  
+    pygame.mixer.music.play(-1) 
+
+play_random_bgm() 
 
 clock = pygame.time.Clock()
 fps = 60
@@ -15,14 +32,19 @@ panel_img = pygame.image.load('img/Background/Panel.png').convert_alpha()
 font_ui = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 20)
 
 # Define attack icon rect (example position and size, adjust as needed)
-attack_icon_rect = pygame.Rect(350, 900, 64, 64)  # x, y, width, height
+attack_icon_rect = pygame.Rect(350, 820, 64, 64)  # x, y, width, height
 
 current_turn = "player"  # giliran "player" atau "enemy"
 enemy_has_attacked = False
 
 turn_switch_delay = 1500  # jeda milidetik antar giliran
 turn_switch_time = 0
-font_turn = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 40)
+font_turn = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 36)
+
+turn_notification_img = pygame.image.load('img/Background/TurnNotification.png').convert_alpha()
+turn_notification_duration = 5000  # durasi notifikasi tampil (ms)
+turn_notification_start = 0  # waktu mulai notifikasi (ms)
+
 
 def draw_background():
     screen.blit(background_img, (0, 0))
@@ -30,14 +52,26 @@ def draw_background():
 def draw_panel():
     screen.blit(panel_img, (0, 0))
 
-def draw_turn_text():
-    if current_turn == "player":
-        text = font_turn.render("Your Turn !", True, (0, 255, 0))  # hijau terang
-    else:
-        text = font_turn.render("Enemy Turn !", True, (255, 0, 0))  # merah terang
-    rect = text.get_rect(center=(screen_width // 2, screen_height // 2))
-    screen.blit(text, rect)
+def start_turn_notification():
+    global turn_notification_start
+    turn_notification_start = pygame.time.get_ticks()
 
+def draw_turn_text():
+    now = pygame.time.get_ticks()
+    if now - turn_notification_start < turn_notification_duration:
+        notif_x = screen_width // 2
+        notif_y = (screen_height // 2) - 470
+
+        notif_rect = turn_notification_img.get_rect(center=(notif_x, notif_y))
+        screen.blit(turn_notification_img, notif_rect)
+
+        if current_turn == "player":
+            text = font_turn.render("Your Turn!", True, (0, 255, 0))
+        else:
+            text = font_turn.render("Enemy Turn!", True, (255, 0, 0))
+
+        text_rect = text.get_rect(center=(notif_x, notif_y))
+        screen.blit(text, text_rect)
 
 class Entity():
     def __init__(self, x, y, max_hp, strength, potion, name, scale):
@@ -208,9 +242,16 @@ class BloodReaper(Entity):
             if not self.attack_applied and self.frame_index == len(self.animation_list[1]) - 1:
                 base_damage = self.strength * (2 if self.double_attack else 1)
                 if hasattr(self, "attack_target") and self.attack_target:
-                    self.attack_target.take_damage(base_damage)
+                    damage_done = self.attack_target.take_damage(base_damage)
+                    # Life Steal: 10% dari base_damage (ATK) jadi heal
+                    heal_amount = int(base_damage * 0.10)
+                    self.target_health = min(self.max_hp, self.target_health + heal_amount)
                 self.attack_applied = True
 
+    def take_damage(self, amount):
+        damage_taken = max(0, amount - self.defense)
+        self.target_health -= damage_taken
+        return damage_taken
 
     def use_skill(self, skill_name):
         if skill_name == "Blood Sacrifice":
@@ -460,6 +501,7 @@ while run:
                     current_turn = "enemy"
                     enemy_has_attacked = False
                     turn_switch_time = pygame.time.get_ticks()
+                    start_turn_notification()
 
     # Giliran musuh menyerang otomatis setelah delay
     now = pygame.time.get_ticks()
@@ -473,6 +515,7 @@ while run:
                 current_turn = "player"
                 enemy_has_attacked = False
                 turn_switch_time = now
+                start_turn_notification()
 
     pygame.display.update()
 
