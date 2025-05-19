@@ -21,7 +21,7 @@ def draw_panel():
     screen.blit(panel_img, (0, 0))
 
 class Entity():
-    def __init__(self, x, y, max_hp, strength, potion, name, scale):
+    def _init_(self, x, y, max_hp, strength, potion, name, scale):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
@@ -144,9 +144,97 @@ class Entity():
     def update_energy(self):
         self.target_energy = max(0, min(self.target_energy, self.max_energy))
 
+class BloodReaper(Entity):
+    def _init_(self, x, y, scale):
+        super()._init_(x, y, max_hp=900, strength=40, potion=3, name="BloodReaper", scale=scale)
+        self.defense = 10
+        self.agility = 25
+        self.bleed_level = 0
+        self.total_hp_lost = 0
+        self.bleed_upgrade = False
+        self.double_attack = False
+        self.attacking = False
+        self.attack_applied = False
+
+    def take_damage(self, amount):
+        damage_taken = max(0, amount - self.defense)
+        self.target_health -= damage_taken
+        self.total_hp_lost += damage_taken
+        return damage_taken
+
+    def attack(self, target):
+        if not self.attacking:
+            self.attacking = True
+            self.attack_applied = False
+            self.action = 1  # Switch to attack animation
+            self.attack_target = target  # Save reference to apply damage later
+
+    def update(self):
+        try:
+            super().update()
+
+            if self.attacking:
+                if self.frame_index == len(self.animation_list[1]) - 1:
+                    if not self.attack_applied:
+                        base_damage = self.strength * (2 if self.double_attack else 1)
+
+                        if hasattr(self, "attack_target") and self.attack_target:
+                            self.attack_target.take_damage(base_damage)
+
+                            self.target_health = min(self.max_hp, self.target_health + int(base_damage * 0.1))
+
+                            if self.bleed_level > 0 and hasattr(self.attack_target, "apply_bleed"):
+                                self.attack_target.apply_bleed(self.bleed_level)
+
+                            self.attack_applied = True
+
+                if self.attack_applied and self.frame_index == len(self.animation_list[1]) - 1:
+                    self.action = 0
+                    self.attacking = False
+                    self.frame_index = 0
+        except Exception as e:
+            print("Update Error:", e)
+
+
+    def use_skill(self, skill_name):
+        if skill_name == "Blood Sacrifice":
+            bonus = int((self.max_hp - self.target_health) * 0.2)
+            self.strength += bonus
+        elif skill_name == "Activate Bleed":
+            self.bleed_level = 1
+
+    def apply_bleed(self, stacks):
+        self.bleed_level = min(7 if self.bleed_upgrade else 3, self.bleed_level + stacks)
+
+    def bleed_effect(self, target):
+        if self.bleed_level > 0:
+            bleed_damage = int(5 + self.bleed_level * 2)
+            target.take_damage(bleed_damage)
+            if self.bleed_upgrade:
+                self.target_health = min(self.max_hp, self.target_health + int(bleed_damage * 0.1))
+
+    def apply_upgrade(self, option):
+        if option == "ATK+7":
+            self.strength += 7
+        elif option == "AGI+7":
+            self.agility += 7
+        elif option == "HP+10":
+            self.max_hp += 10
+        elif option == "Upgrade Life Steal":
+            pass  # Bisa ditambahkan multiplier heal
+        elif option == "Upgrade Blood Sacrifice":
+            pass
+        elif option == "Unlock Bleed":
+            self.bleed_level = 1
+        elif option == "Bleed+%":
+            pass
+        elif option == "Blood Frenzy":
+            self.bleed_upgrade = True
+        elif option == "Double Trouble":
+            self.double_attack = True
 
 class Boss():
-    def __init__(self, x, y, max_hp, strength, potion, name, scale):
+    def _init_(self, x, y, max_hp, strength, potion, name, scale):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
@@ -276,15 +364,19 @@ class Boss():
 
     def update_energy(self):
         self.target_energy = max(0, min(self.target_energy, self.max_energy))
+    
+    def take_damage(self, amount):
+        self.target_health -= amount
+
 
 
 
 # Buat karakter dan musuh
-BloodReaper = Entity(501, 500, 1000, 10, 3, "BloodReaper", scale=2.7)
-DoomCultist = Entity(1086, 350, 800, 10, 3, "DoomCultist", scale=4.5)
-Medusa = Entity(1520, 350, 900, 10, 3, "Medusa", scale=4.5)
-Cyclops = Entity(1086, 350, 1200, 10, 3, "Cyclops", scale=4.5)
-DeathSentry = Boss(1300, 400, 1200, 500, 3, "DeathSentry", scale=8.5)
+BloodReaper = BloodReaper(501, 500, scale=2.7)
+DoomCultist = Entity(1086, 350, 480, 10, 3, "DoomCultist", scale=4.5)
+Medusa = Entity(1520, 350, 520, 8, 3, "Medusa", scale=4.5)
+Cyclops = Entity(1086, 350, 450, 7, 3, "Cyclops", scale=4.5)
+DeathSentry = Boss(1300, 400, 800, 20, 3, "DeathSentry", scale=8.5)
 
 run = True
 while run:
@@ -300,6 +392,9 @@ while run:
     # Tampilkan bar Blood Reaper (bisa dimodifikasi)
     BloodReaper.draw_health_bar_panel(x=350, y=790)
     BloodReaper.draw_energy_bar_panel(x=350, y=810)
+    attack_icon_rect = pygame.Rect(350, 840, 64, 64)  # (x, y, width, height)
+
+
 
     DeathSentry.draw_health_bar_panel(x=1200, y=790)
     DeathSentry.draw_energy_bar_panel(x=1200, y=810)
@@ -313,19 +408,24 @@ while run:
     # Cyclops.draw_energy_bar_panel(x=1200, y=890)
     
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+         if event.type == pygame.QUIT:
             run = False
 
-        # Input hanya mempengaruhi Blood Reaper
-        if event.type == pygame.KEYDOWN:
+         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_DOWN:
                 BloodReaper.target_health -= 200
-            if event.key == pygame.K_UP:
+            elif event.key == pygame.K_UP:
                 BloodReaper.target_health += 200
-            if event.key == pygame.K_LEFT:
+            elif event.key == pygame.K_LEFT:
                 BloodReaper.target_energy -= 20
-            if event.key == pygame.K_RIGHT:
+            elif event.key == pygame.K_RIGHT:
                 BloodReaper.target_energy += 20
+            elif event.key == pygame.K_s:
+                BloodReaper.attack(DeathSentry)
+     
+         elif event.type == pygame.MOUSEBUTTONDOWN:
+            if attack_icon_rect.collidepoint(pygame.mouse.get_pos()):
+                BloodReaper.attack(DeathSentry)
 
     pygame.display.update()
 
