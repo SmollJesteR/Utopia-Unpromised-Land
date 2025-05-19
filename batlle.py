@@ -14,14 +14,33 @@ background_img = pygame.image.load('img/Background/Map.png').convert_alpha()
 panel_img = pygame.image.load('img/Background/Panel.png').convert_alpha()
 font_ui = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 20)
 
+# Define attack icon rect (example position and size, adjust as needed)
+attack_icon_rect = pygame.Rect(350, 900, 64, 64)  # x, y, width, height
+
+current_turn = "player"  # giliran "player" atau "enemy"
+enemy_has_attacked = False
+
+turn_switch_delay = 1500  # jeda milidetik antar giliran
+turn_switch_time = 0
+font_turn = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 40)
+
 def draw_background():
     screen.blit(background_img, (0, 0))
 
 def draw_panel():
     screen.blit(panel_img, (0, 0))
 
+def draw_turn_text():
+    if current_turn == "player":
+        text = font_turn.render("Your Turn !", True, (0, 255, 0))  # hijau terang
+    else:
+        text = font_turn.render("Enemy Turn !", True, (255, 0, 0))  # merah terang
+    rect = text.get_rect(center=(screen_width // 2, screen_height // 2))
+    screen.blit(text, rect)
+
+
 class Entity():
-    def _init_(self, x, y, max_hp, strength, potion, name, scale):
+    def __init__(self, x, y, max_hp, strength, potion, name, scale):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
@@ -67,7 +86,7 @@ class Entity():
         self.rect.center = (x, y)
 
     def update(self):
-        animation_cooldown = 100
+        animation_cooldown = 150
         self.image = self.animation_list[self.action][self.frame_index]
         if pygame.time.get_ticks() - self.update_time > animation_cooldown:
             self.update_time = pygame.time.get_ticks()
@@ -145,8 +164,8 @@ class Entity():
         self.target_energy = max(0, min(self.target_energy, self.max_energy))
 
 class BloodReaper(Entity):
-    def _init_(self, x, y, scale):
-        super()._init_(x, y, max_hp=900, strength=40, potion=3, name="BloodReaper", scale=scale)
+    def __init__(self, x, y, scale):
+        super().__init__(x, y, max_hp=100, strength=70, potion=3, name="BloodReaper", scale=scale)
         self.defense = 10
         self.agility = 25
         self.bleed_level = 0
@@ -168,32 +187,29 @@ class BloodReaper(Entity):
             self.attack_applied = False
             self.action = 1  # Switch to attack animation
             self.attack_target = target  # Save reference to apply damage later
-
+            self.frame_index = 0  
+          
     def update(self):
-        try:
-            super().update()
+        animation_cooldown = 150
+        self.image = self.animation_list[self.action][self.frame_index]
+        if pygame.time.get_ticks() - self.update_time > animation_cooldown:
+            self.update_time = pygame.time.get_ticks()
+            self.frame_index += 1
 
-            if self.attacking:
-                if self.frame_index == len(self.animation_list[1]) - 1:
-                    if not self.attack_applied:
-                        base_damage = self.strength * (2 if self.double_attack else 1)
+        if self.frame_index >= len(self.animation_list[self.action]):
+            self.frame_index = 0
+            if self.action == 1:
+                self.action = 0
+                self.attacking = False
+                self.attack_applied = False
 
-                        if hasattr(self, "attack_target") and self.attack_target:
-                            self.attack_target.take_damage(base_damage)
-
-                            self.target_health = min(self.max_hp, self.target_health + int(base_damage * 0.1))
-
-                            if self.bleed_level > 0 and hasattr(self.attack_target, "apply_bleed"):
-                                self.attack_target.apply_bleed(self.bleed_level)
-
-                            self.attack_applied = True
-
-                if self.attack_applied and self.frame_index == len(self.animation_list[1]) - 1:
-                    self.action = 0
-                    self.attacking = False
-                    self.frame_index = 0
-        except Exception as e:
-            print("Update Error:", e)
+        # Lakukan damage sekali saat frame terakhir animasi attack
+        if self.action == 1:
+            if not self.attack_applied and self.frame_index == len(self.animation_list[1]) - 1:
+                base_damage = self.strength * (2 if self.double_attack else 1)
+                if hasattr(self, "attack_target") and self.attack_target:
+                    self.attack_target.take_damage(base_damage)
+                self.attack_applied = True
 
 
     def use_skill(self, skill_name):
@@ -234,7 +250,7 @@ class BloodReaper(Entity):
             self.double_attack = True
 
 class Boss():
-    def _init_(self, x, y, max_hp, strength, potion, name, scale):
+    def __init__(self, x, y, max_hp, strength, potion, name, scale):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
@@ -242,7 +258,7 @@ class Boss():
         self.potion = potion
         self.alive = True
         self.animation_list = []
-        self.action = 2
+        self.action = 0
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
 
@@ -258,6 +274,9 @@ class Boss():
         self.energy_bar_length = 350
         self.energy_ratio = self.max_energy / self.energy_bar_length
         self.energy_change_speed = 2
+
+        self.attacking = False
+        self.attack_applied = False
 
         # load idle animation
         temp_list = []
@@ -287,18 +306,55 @@ class Boss():
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
+    def attack(self, target):
+        if not self.attacking:
+            self.attacking = True
+            self.attack_applied = False
+            self.action = 1
+            self.attack_target = target
+
     def update(self):
-        animation_cooldown = 100
-        self.image = self.animation_list[self.action][self.frame_index]
+        animation_cooldown = 150
+        if self.action < len(self.animation_list):
+            frames = self.animation_list[self.action]
+            if self.frame_index >= len(frames):
+                self.frame_index = 0
+            self.image = frames[self.frame_index]
+        else:
+            # Jika action invalid, reset ke idle
+            self.action = 0
+            self.frame_index = 0
+            self.image = self.animation_list[0][0]
+
+        # Update frame jika cooldown terpenuhi
         if pygame.time.get_ticks() - self.update_time > animation_cooldown:
             self.update_time = pygame.time.get_ticks()
             self.frame_index += 1
 
-        if self.frame_index >= len(self.animation_list[self.action]):
+        # Jika animasi attack selesai, kembalikan ke idle dan reset status
+        if self.action == 1 and self.frame_index >= len(self.animation_list[1]):
             self.frame_index = 0
+            self.action = 0
+            self.attacking = False
+            self.attack_applied = False
+
+        # Lakukan damage sekali di frame terakhir animasi attack
+        if self.action == 1:
+            if (not self.attack_applied) and (self.frame_index == len(self.animation_list[1]) - 1):
+                base_damage = self.strength
+                if hasattr(self, "attack_target") and self.attack_target:
+                    self.attack_target.take_damage(base_damage)
+                self.attack_applied = True
+
+                # Tandai musuh sudah menyerang (jika variabel global digunakan)
+                global enemy_has_attacked
+                enemy_has_attacked = True
 
         self.update_health()
         self.update_energy()
+
+  # Tandai sudah menyerang
+
 
     def draw(self):
         screen.blit(self.image, self.rect)
@@ -368,15 +424,12 @@ class Boss():
     def take_damage(self, amount):
         self.target_health -= amount
 
-
-
-
 # Buat karakter dan musuh
 BloodReaper = BloodReaper(501, 500, scale=2.7)
 DoomCultist = Entity(1086, 350, 480, 10, 3, "DoomCultist", scale=4.5)
 Medusa = Entity(1520, 350, 520, 8, 3, "Medusa", scale=4.5)
 Cyclops = Entity(1086, 350, 450, 7, 3, "Cyclops", scale=4.5)
-DeathSentry = Boss(1300, 400, 800, 20, 3, "DeathSentry", scale=8.5)
+DeathSentry = Boss(1300, 400, 500, 30, 3, "DeathSentry", scale=8.5)
 
 run = True
 while run:
@@ -387,17 +440,47 @@ while run:
     for character in [BloodReaper, DeathSentry]:
         character.update()
         character.draw()
-    
 
-    # Tampilkan bar Blood Reaper (bisa dimodifikasi)
     BloodReaper.draw_health_bar_panel(x=350, y=790)
     BloodReaper.draw_energy_bar_panel(x=350, y=810)
-    attack_icon_rect = pygame.Rect(350, 840, 64, 64)  # (x, y, width, height)
-
-
-
     DeathSentry.draw_health_bar_panel(x=1200, y=790)
     DeathSentry.draw_energy_bar_panel(x=1200, y=810)
+
+    draw_turn_text()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+        # Input hanya berlaku saat giliran player
+        if current_turn == "player":
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_s and not BloodReaper.attacking:
+                    BloodReaper.attack(DeathSentry)
+                    current_turn = "enemy"
+                    enemy_has_attacked = False
+                    turn_switch_time = pygame.time.get_ticks()
+
+    # Giliran musuh menyerang otomatis setelah delay
+    now = pygame.time.get_ticks()
+    if current_turn == "enemy":
+        if now - turn_switch_time > turn_switch_delay:
+            if not DeathSentry.attacking and not enemy_has_attacked:
+                DeathSentry.attack(BloodReaper)
+                enemy_has_attacked = True
+
+            if not DeathSentry.attacking and enemy_has_attacked:
+                current_turn = "player"
+                enemy_has_attacked = False
+                turn_switch_time = now
+
+    pygame.display.update()
+
+
+
+pygame.quit()
+
+
 
 
     # Tampilkan bar Doom Cultist (hanya tampil, tidak bisa dimodifikasi)
@@ -406,27 +489,3 @@ while run:
 
     # Cyclops.draw_health_bar_panel(x=1200, y=870)
     # Cyclops.draw_energy_bar_panel(x=1200, y=890)
-    
-    for event in pygame.event.get():
-         if event.type == pygame.QUIT:
-            run = False
-
-         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_DOWN:
-                BloodReaper.target_health -= 200
-            elif event.key == pygame.K_UP:
-                BloodReaper.target_health += 200
-            elif event.key == pygame.K_LEFT:
-                BloodReaper.target_energy -= 20
-            elif event.key == pygame.K_RIGHT:
-                BloodReaper.target_energy += 20
-            elif event.key == pygame.K_s:
-                BloodReaper.attack(DeathSentry)
-     
-         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if attack_icon_rect.collidepoint(pygame.mouse.get_pos()):
-                BloodReaper.attack(DeathSentry)
-
-    pygame.display.update()
-
-pygame.quit()
