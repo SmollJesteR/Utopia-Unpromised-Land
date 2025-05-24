@@ -9,10 +9,14 @@ class Game:
         self.screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
         self.clock = pygame.time.Clock()
         self.running = True
+        
+        self.character_spritesheet = Spritesheet('BloodReaper/walk.png ')#image spritesheets char
+        self.terrain_spritesheet = Spritesheet('BloodReaper/Ground_rocks.png')#image spritesheets env
     
     def create_map(self):
         for i, row in enumerate(tilemap):
             for j, tile in enumerate(row):
+                Floor(self, j,i)
                 if tile == 'B':
                     Block(self, j, i)
                 if tile == 'P':
