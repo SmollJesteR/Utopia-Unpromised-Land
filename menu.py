@@ -14,24 +14,70 @@ def get_font(size):
 
 def character_story(selected_character):
     running = True
+
+    if selected_character == 1:
+        title = "Ashen Warrior"
+        desc = "Ashen Warrior adalah penjaga biru yang setia,\nberjuang demi keadilan dan kedamaian di Utopia."
+        char_color = (120, 200, 255)
+    else:
+        title = "Blood Ripper"
+        desc = "Blood Ripper adalah pendekar merah yang kejam,\nmenebar teror demi ambisi dan kekuatan."
+        char_color = (255, 100, 100)
+
     while running:
         SCREEN.blit(BG, (0, 0))
-        if selected_character == 1:
-            title = "Ashen Warrior"
-            desc = "Ashen Warrior adalah penjaga biru yang setia, \nberjuang demi keadilan dan kedamaian di Utopia."
-        else:
-            title = "Blood Ripper"
-            desc = "Blood Ripper adalah pendekar merah yang kejam, \nmenebar teror demi ambisi dan kekuatan."
 
-        title_text = get_font(40).render(title, True, "White")
-        title_rect = title_text.get_rect(center=(960, 250))
+        screen_center_x = SCREEN.get_width() // 2
+
+        char_rect = pygame.Rect(screen_center_x - 470, 320, 280, 540)
+
+        name_font = get_font(48)
+        gap = 80  
+        title_text = name_font.render(title, True, "White")
+        title_rect = title_text.get_rect(center=(char_rect.centerx, char_rect.top - gap))
         SCREEN.blit(title_text, title_rect)
+        pygame.draw.rect(SCREEN, char_color, char_rect, border_radius=50)
 
-        # Multi-line description
-        for i, line in enumerate(desc.split('\n')):
-            desc_text = get_font(28).render(line, True, "White")
-            desc_rect = desc_text.get_rect(center=(960, 350 + i * 50))
+        
+        desc_width = 600
+        desc_font = get_font(18)
+        desc_lines = []
+        for paragraph in desc.split('\n'):
+            words = paragraph.split(' ')
+            line = ""
+            for word in words:
+                test_line = line + word + " "
+                test_surface = desc_font.render(test_line, True, "White")
+                if test_surface.get_width() > desc_width:
+                    desc_lines.append(line)
+                    line = word + " "
+                else:
+                    line = test_line
+            desc_lines.append(line)
+        line_spacing = 38
+
+        desc_title_gap = 10 
+        desc_y = char_rect.top 
+        desc_x = char_rect.right + 180  
+
+        for i, line in enumerate(desc_lines):
+            desc_text = desc_font.render(line.strip(), True, "White")
+            desc_rect = desc_text.get_rect()
+            desc_rect.topleft = (desc_x, desc_y + i * line_spacing)
             SCREEN.blit(desc_text, desc_rect)
+
+        rect_gap = 40
+        perk_rect_y = desc_y + len(desc_lines) * line_spacing + rect_gap
+        perk_rect_width = 500
+        perk_rect = pygame.Rect(
+            desc_x,  # sejajar dengan deskripsi
+            perk_rect_y,
+            perk_rect_width,
+            50
+        )
+        pygame.draw.rect(SCREEN, (200, 200, 80), perk_rect, border_radius=18)
+        # ...bisa tambahkan isi perk di sini jika ingin...
+
 
         BACK_BTN = Button(image=None, pos=(960, 900), 
                           text_input="BACK", font=get_font(28), base_color="White", hovering_color="Green")
@@ -49,37 +95,33 @@ def character_story(selected_character):
         pygame.display.update()
 
 def play():
-    selected_character = 1  # Default ke karakter 1
+    selected_character = 1  
     last_click_time = 0
-    click_interval = 400  # ms
+    click_interval = 400 
     blink = True
     blink_timer = 0
-    blink_interval = 500  # ms
+    blink_interval = 500  
 
     while True:
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
         now = pygame.time.get_ticks()
 
-        # Gunakan background dari aset
         SCREEN.blit(BG, (0, 0))
 
         PLAY_TEXT = get_font(45).render("Select Your Character", True, "White")
         PLAY_RECT = PLAY_TEXT.get_rect(center=(960, 200)) 
         SCREEN.blit(PLAY_TEXT, PLAY_RECT)
 
-        # Box karakter sedikit lebih atas
         left_rect = pygame.Rect(560, 300, 240, 420)
         right_rect = pygame.Rect(1120, 300, 240, 420)
         pygame.draw.rect(SCREEN, (120, 200, 255) if selected_character == 1 else (180, 180, 180), left_rect, border_radius=30)
         pygame.draw.rect(SCREEN, (255, 200, 120) if selected_character == 2 else (180, 180, 180), right_rect, border_radius=30)
 
-        # Box nama karakter invisible, hanya tampilkan teks dengan font lebih besar
         name_box_height = 60
         name_box_gap = 60
         name_box_width = 320
         left_name_box = pygame.Rect(left_rect.centerx - name_box_width // 2, left_rect.bottom + name_box_gap, name_box_width, name_box_height)
         right_name_box = pygame.Rect(right_rect.centerx - name_box_width // 2, right_rect.bottom + name_box_gap, name_box_width, name_box_height)
-        # Tidak perlu draw.rect untuk box nama karakter (invisible)
 
         char_font = get_font(32)
         char1_text = char_font.render("Ashen Warrior", True, "White")
@@ -88,7 +130,6 @@ def play():
         SCREEN.blit(char2_text, (right_name_box.centerx - char2_text.get_width() // 2, right_name_box.centery - char2_text.get_height() // 2))
 
 
-        # Tombol BACK lebih kecil dan tetap di bawah
         PLAY_BACK = Button(image=None, pos=(960, 900), 
                             text_input="BACK", font=get_font(28), base_color="White", hovering_color="Green")
 
@@ -99,7 +140,7 @@ def play():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            # Keyboard arrow selection
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     selected_character = 1
@@ -154,7 +195,7 @@ def options():
         pygame.display.update()
 
 def main_menu():
-    selected_menu = 0  # 0: PLAY, 1: OPTIONS, 2: QUIT
+    selected_menu = 0 
     menu_buttons = ["PLAY", "OPTIONS", "QUIT"]
     button_positions = [425, 625, 825]
     while True:
@@ -166,7 +207,6 @@ def main_menu():
         MENU_RECT = MENU_TEXT.get_rect(center=(960, 230))  
         SCREEN.blit(MENU_TEXT, MENU_RECT)
 
-        # Render buttons, highlight selected
         PLAY_BUTTON = Button(
             image=pygame.image.load("Assets/Play Rect.png"),
             pos=(960, 425),
@@ -202,7 +242,7 @@ def main_menu():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            # Keyboard navigation
+    
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     selected_menu = (selected_menu - 1) % 3
