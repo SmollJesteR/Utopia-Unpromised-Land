@@ -10,8 +10,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
-        self.character_spritesheet = Spritesheet('BloodReaper/walk.png ')#image spritesheets char
-        self.terrain_spritesheet = Spritesheet('BloodReaper/Ground_rocks.png')#image spritesheets env
+        self.character_spritesheet = Spritesheet('img/BloodReaper/walk.png ')#image spritesheets char
+        self.terrain_spritesheet = Spritesheet('img/Background/Ground_rocks.png')#image spritesheets env
     
     def create_map(self):
         for i, row in enumerate(tilemap):
