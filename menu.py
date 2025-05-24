@@ -6,11 +6,11 @@ pygame.init()
 SCREEN = pygame.display.set_mode((1920, 1080))  
 pygame.display.set_caption("Menu")
 
-BG = pygame.image.load("assets/Background.png")
+BG = pygame.image.load("Assets/Background.png")
 BG = pygame.transform.scale(BG, (1920, 1080))
 
 def get_font(size):
-    return pygame.font.Font("assets/font.ttf", size)
+    return pygame.font.Font("Assets/font.ttf", size)
 
 def play():
     while True:
@@ -73,11 +73,11 @@ def main_menu():
         MENU_TEXT = get_font(100).render("MAIN MENU", True, "#b68f40")
         MENU_RECT = MENU_TEXT.get_rect(center=(960, 230))  
 
-        PLAY_BUTTON = Button(image=pygame.image.load("assets/Play Rect.png"), pos=(960, 425), 
+        PLAY_BUTTON = Button(image=pygame.image.load("Assets/Play Rect.png"), pos=(960, 425), 
                             text_input="PLAY", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
-        OPTIONS_BUTTON = Button(image=pygame.image.load("assets/Options Rect.png"), pos=(960, 625), 
+        OPTIONS_BUTTON = Button(image=pygame.image.load("Assets/Options Rect.png"), pos=(960, 625), 
                             text_input="OPTIONS", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
-        QUIT_BUTTON = Button(image=pygame.image.load("assets/Quit Rect.png"), pos=(960, 825), 
+        QUIT_BUTTON = Button(image=pygame.image.load("Assets/Quit Rect.png"), pos=(960, 825), 
                             text_input="QUIT", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
 
         SCREEN.blit(MENU_TEXT, MENU_RECT)
