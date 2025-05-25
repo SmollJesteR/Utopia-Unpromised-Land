@@ -98,35 +98,35 @@ class Player(pygame.sprite.Sprite):
                                self.game.character_spritesheet.get_sprite(463,12,47,51),
                                self.game.character_spritesheet.get_sprite(527,12,47,52)
                                ]
-            left_animations = [self.game.character_spritesheet.get_sprite(7,76,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(78,77,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(138,76,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(201,76,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(262,76,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(324,77,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(390,76,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(457,76,self.width,self.height),
-                             self.game.character_spritesheet.get_sprite(522,76,self.width,self.height)
+            left_animations = [self.game.character_spritesheet.get_sprite(7,76,38,51),
+                             self.game.character_spritesheet.get_sprite(78,77,32,50),
+                             self.game.character_spritesheet.get_sprite(138,76,37,50),
+                             self.game.character_spritesheet.get_sprite(201,76,37,50),
+                             self.game.character_spritesheet.get_sprite(262,76,41,50),
+                             self.game.character_spritesheet.get_sprite(324,77,44,49),
+                             self.game.character_spritesheet.get_sprite(390,76,41,51),
+                             self.game.character_spritesheet.get_sprite(457,76,37,51),
+                             self.game.character_spritesheet.get_sprite(522,76,37,51)
                              ]
-            down_animations = [self.game.character_spritesheet.get_sprite(15,140,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(79,140,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(143,140,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(207,141,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(271,140,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(335,140,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(399,140,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(463,141,self.width,self.height),
-                               self.game.character_spritesheet.get_sprite(527,140,self.width,self.height)
+            down_animations = [self.game.character_spritesheet.get_sprite(15,140,47,51),
+                               self.game.character_spritesheet.get_sprite(79,140,43,51),
+                               self.game.character_spritesheet.get_sprite(143,140,42,51),
+                               self.game.character_spritesheet.get_sprite(207,141,43,51),
+                               self.game.character_spritesheet.get_sprite(271,140,46,52),
+                               self.game.character_spritesheet.get_sprite(335,140,47,51),
+                               self.game.character_spritesheet.get_sprite(399,140,47,51),
+                               self.game.character_spritesheet.get_sprite(463,141,46,51),
+                               self.game.character_spritesheet.get_sprite(527,140,47,52)
                                ]
-            right_animations = [self.game.character_spritesheet.get_sprite(19,204,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(82,205,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(145,204,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(210,204,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(273,204,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(336,205,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(401,204,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(466,204,self.width,self.height),
-                                self.game.character_spritesheet.get_sprite(529,204,self.width,self.height)
+            right_animations = [self.game.character_spritesheet.get_sprite(19,204,38,51),
+                                self.game.character_spritesheet.get_sprite(82,205,32,50),
+                                self.game.character_spritesheet.get_sprite(145,204,37,50),
+                                self.game.character_spritesheet.get_sprite(210,204,37,50),
+                                self.game.character_spritesheet.get_sprite(273,204,41,50),
+                                self.game.character_spritesheet.get_sprite(336,205,44,49),
+                                self.game.character_spritesheet.get_sprite(401,204,41,51),
+                                self.game.character_spritesheet.get_sprite(466,204,37,51),
+                                self.game.character_spritesheet.get_sprite(529,204,37,51)
                                 ]
             
             if self.facing == "down":
