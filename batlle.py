@@ -79,18 +79,22 @@ def draw_turn_text():
     now = pygame.time.get_ticks()
     if now - turn_notification_start < turn_notification_duration:
         notif_x = screen_width // 2
-        notif_y = (screen_height // 2) - 440  # Adjusted Y position up by 30 pixels
+        notif_y = (screen_height // 2) - 440
 
         notif_rect = turn_notification_img.get_rect(center=(notif_x, notif_y))
         screen.blit(turn_notification_img, notif_rect)
 
-        if current_turn == "player":
+        # Change text based on game state
+        if blood_reaper.is_dead:
+            text = font_turn.render("You Lose!", True, (255, 0, 0))
+        elif death_sentry.is_dead:
+            text = font_turn.render("You Win!", True, (0, 255, 0))
+        elif current_turn == "player":
             text = font_turn.render("Your Turn!", True, (0, 255, 0))
         else:
             text = font_turn.render("Foe Turn!", True, (255, 0, 0))
 
-        # Move text slightly down relative to notification image
-        text_rect = text.get_rect(center=(notif_x, notif_y - 10))  # Offset text by 10 pixels down
+        text_rect = text.get_rect(center=(notif_x, notif_y - 10))
         screen.blit(text, text_rect)
 
 class DamageNumber:
@@ -179,63 +183,174 @@ class Entity():
             temp_list.append(img)
         self.animation_list.append(temp_list)
 
-        # Add death animation loading for DeathSentry
-        if name == "DeathSentry":
-            temp_list = []
-            for i in range(14):# Only load 4 death frames
-                img = pygame.image.load(f'img/{self.name}/Death/{i+1}.png')
-                img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-                temp_list.append(img)
-            self.animation_list.append(temp_list)
+        # load death animation
+        temp_list = []
+        for i in range(6):  # BloodReaper death animation has 6 frames
+            img = pygame.image.load(f'img/{self.name}/Death/{i+1}.png')
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
 
-        # Add skill animation loading for DeathSentry
-        if name == "DeathSentry":
-            temp_list = []
-            for i in range(7):  # Load 7 skill frames
-                img = pygame.image.load(f'img/{self.name}/Skill/{i+1}.png')
-                img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-                temp_list.append(img)
-            self.animation_list.append(temp_list)
-        
-        # Add ultimate animation loading for DeathSentry
-        if name == "DeathSentry":
-            temp_list = []
-            for i in range(14):
-                img = pygame.image.load(f'img/{self.name}/Ultimate/{i+1}.png')
-                img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-                temp_list.append(img)
-            self.animation_list.append(temp_list)
+        # Initialize attributes for death state
+        self.is_dying = False
+        self.is_dead = False
 
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
+        self.attacking = False
+        self.attack_applied = False
+
+        self.entity_type = "entity"  # Add this line
+
+        self.immunity_turns = 0  # Add immunity counter
+
+    def attack(self, target):
+        # Check immunity and death state before allowing attack
+        if self.is_dead or self.is_dying or self.immunity_turns > 0:
+            return
+            
+        if not self.attacking and self.current_energy >= 20:
+            self.attacking = True
+            self.attack_applied = False
+            self.frame_index = 0  # Reset frame index when starting attack
+            self.action = 1
+            self.attack_target = target
+            self.target_energy = max(0, self.target_energy - 20)
+            if self.entity_type == "player":
+                pygame.mixer.Sound.play(attack_sfx)
+
+    def take_damage(self, amount):
+        # Base take_damage now checks immunity
+        if self.immunity_turns > 0:
+            return 0  # Return 0 damage if immune
+        self.target_health -= amount
+        return amount
+
+    def update_health(self):
+        """Update health values within bounds"""
+        self.target_health = max(0, min(self.target_health, self.max_hp))
+
+    def update_energy(self):
+        """Update energy values within bounds"""
+        self.target_energy = max(0, min(self.target_energy, self.max_energy))
+
     def update(self):
         animation_cooldown = 150
-        self.image = self.animation_list[self.action][self.frame_index]
-        if pygame.time.get_ticks() - self.update_time > animation_cooldown:
-            self.update_time = pygame.time.get_ticks()
-            self.frame_index += 1
+        current_time = pygame.time.get_ticks()
 
+        # Check for death first
+        if self.target_health <= 0 and not self.is_dying and not self.is_dead:
+            self.is_dying = True
+            self.action = 2
+            self.frame_index = 0
+            self.original_y = self.rect.y  # Store original Y position
+            pygame.mixer.Sound.play(deathboss1_sfx)
+            return
+
+        # Handle death animation separately with downward movement
+        if self.is_dying or self.is_dead:
+            if current_time - self.update_time > animation_cooldown:
+                if self.is_dying:
+                    self.frame_index = min(self.frame_index + 1, len(self.animation_list[2]) - 1)
+                    # Move down 10 pixels each frame during death animation
+                    self.rect.y += 10  
+                    if self.frame_index >= len(self.animation_list[2]) - 1:
+                        self.is_dead = True
+                        self.is_dying = False
+            self.image = self.animation_list[2][self.frame_index]
+            return
+
+        # Safety check for animation indices
+        if self.action >= len(self.animation_list):
+            self.action = 0
+            self.frame_index = 0
+            
         if self.frame_index >= len(self.animation_list[self.action]):
             self.frame_index = 0
+            if self.action == 1:  # If attack animation finished
+                self.action = 0   # Return to idle
+                self.attacking = False
+                self.attack_applied = False
 
-        self.update_health()
-        self.update_energy()
+        # Handle animation updates
+        if current_time - self.update_time > animation_cooldown:
+            self.update_time = current_time
+            self.frame_index += 1
+
+            # Handle different animation states
+            if self.is_dying:
+                if self.frame_index >= len(self.animation_list[2]):
+                    self.frame_index = len(self.animation_list[2]) - 1
+                    self.is_dead = True
+                    self.is_dying = False
+            elif self.action == 1:  # Attack animation
+                if self.frame_index >= len(self.animation_list[1]):
+                    self.frame_index = 0
+                    self.action = 0
+                    self.attacking = False
+                    self.attack_applied = False
+            else:  # Idle animation
+                if self.frame_index >= len(self.animation_list[0]):
+                    self.frame_index = 0
+
+        # Update current frame safely
+        if (self.action < len(self.animation_list) and 
+            self.frame_index < len(self.animation_list[self.action])):
+            self.image = self.animation_list[self.action][self.frame_index]
+
+        # Handle attack damage
+        if self.action == 1 and not self.attack_applied and self.frame_index == len(self.animation_list[1]) - 2:
+            if hasattr(self, "attack_target") and self.attack_target:
+                self.apply_attack_damage()
+
+        # Update stats directly
+        if not self.is_dead:
+            self.update_health()
+            self.update_energy()
+
+    def apply_attack_damage(self):
+        base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
+        damage_done = self.attack_target.take_damage(base_damage)
+        
+        # Show damage number or Miss!
+        damage_numbers.append(DamageNumber(
+            self.attack_target.rect.centerx,
+            self.attack_target.rect.y,
+            "Miss!" if damage_done == 0 else damage_done, 
+            (255, 255, 255) if damage_done == 0 else (255, 0, 0)
+        ))
+        
+        # Only apply lifesteal if damage was actually dealt
+        if damage_done > 0 and isinstance(self, BloodReaper):
+            heal_amount = int(damage_done * 0.20)
+            if heal_amount > 0:
+                self.target_health = min(self.max_hp, self.target_health + heal_amount)
+                self.target_energy = min(self.max_energy, self.target_energy + 15)
+                damage_numbers.append(DamageNumber(
+                    self.rect.centerx,
+                    self.rect.y,
+                    heal_amount,
+                    (0, 255, 0)
+                ))
+        
+        self.attack_applied = True
 
     def draw(self):
+        """Draw the entity's current image to the screen"""
         screen.blit(self.image, self.rect)
 
     def draw_health_bar_panel(self, x, y):
         transition_width = 0
         transition_color = (255, 0, 0)
 
-        # Nama karakter
+        # Character name
         name_text = font_ui.render(self.name.replace("_", " "), True, (255, 255, 255))
         name_rect = name_text.get_rect(center=(x + self.health_bar_length // 2, y - 25))
         screen.blit(name_text, name_rect)
 
-        # Transisi health
+        # Health bar transition
         if self.current_health < self.target_health:
             self.current_health += self.health_change_speed
             if self.current_health > self.target_health:
@@ -282,37 +397,15 @@ class Entity():
         pygame.draw.rect(screen, transition_color, transition_bar)
         pygame.draw.rect(screen, (255,255,255), (x, y, self.energy_bar_length, 15), 4)
 
-    def update_health(self):
-        self.target_health = max(0, min(self.target_health, self.max_hp))
-
-    def update_energy(self):
-        self.target_energy = max(0, min(self.target_energy, self.max_energy))
-
-    def take_damage(self, amount):
-        self.target_health -= amount
-        return amount  # Return damage dealt
-
 class BloodReaper(Entity):
     def __init__(self, x, y, scale):
         super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
-        self.max_energy = 200  # Change to match DeathSentry
-        self.target_energy = self.max_energy
-        self.current_energy = self.max_energy
-        self.energy_bar_length = 350
-        self.energy_ratio = self.max_energy / self.energy_bar_length
+        self.entity_type = "player"  # Set type for BloodReaper
+        self.load_animations(scale)
 
-        self.defense = 10
-        self.agility = 35
-        self.bleed_level = 0
-        self.total_hp_lost = 0
-        self.bleed_upgrade = False
-        self.double_attack = False
-        self.attacking = False
-        self.attack_applied = False
+        self.immunity_turns = 0  # Add immunity counter
 
-        self.evasion_chance = self.agility / 100
-        self.critical_chance = self.agility / 100
-
+    def load_animations(self, scale):
         # load idle animation
         temp_list = []
         for i in range(8):
@@ -329,125 +422,184 @@ class BloodReaper(Entity):
             temp_list.append(img)
         self.animation_list.append(temp_list)
 
-        self.image = self.animation_list[self.action][self.frame_index]
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
+        # Load death animation for BloodReaper
+        temp_list = []
+        for i in range(6):
+            img = pygame.image.load(f'img/{self.name}/Death/{i+1}.png')
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
 
     def update(self):
-        global combo_counter  # Single global declaration at start of method
         animation_cooldown = 150
-        self.image = self.animation_list[self.action][self.frame_index]
-        if pygame.time.get_ticks() - self.update_time > animation_cooldown:
-            self.update_time = pygame.time.get_ticks()
-            self.frame_index += 1
+        current_time = pygame.time.get_ticks()
 
+        # Check for death first
+        if self.target_health <= 0 and not self.is_dying and not self.is_dead:
+            self.is_dying = True
+            self.action = 2
+            self.frame_index = 0
+            self.original_y = self.rect.y  # Store original Y position
+            pygame.mixer.Sound.play(deathboss1_sfx)
+            return
+
+        # Handle death animation separately with downward movement
+        if self.is_dying or self.is_dead:
+            if current_time - self.update_time > animation_cooldown:
+                if self.is_dying:
+                    self.frame_index = min(self.frame_index + 1, len(self.animation_list[2]) - 1)
+                    # Move down 10 pixels each frame during death animation
+                    self.rect.y += 20  
+                    if self.frame_index >= len(self.animation_list[2]) - 1:
+                        self.is_dead = True
+                        self.is_dying = False
+            self.image = self.animation_list[2][self.frame_index]
+            return
+
+        # Safety check for animation indices
+        if self.action >= len(self.animation_list):
+            self.action = 0
+            self.frame_index = 0
+            
         if self.frame_index >= len(self.animation_list[self.action]):
             self.frame_index = 0
-            if self.action == 1:
-                self.action = 0
+            if self.action == 1:  # If attack animation finished
+                self.action = 0   # Return to idle
                 self.attacking = False
                 self.attack_applied = False
 
-        # Lakukan damage sekali saat frame terakhir animasi attack
-        if self.action == 1:
-            if not self.attack_applied and self.frame_index == len(self.animation_list[1]) - 1:
-                if random.random() < self.critical_chance:
-                    base_damage = self.strength * 2
-                    critical_hit = True
-                else:
-                    base_damage = self.strength
-                    critical_hit = False
+        # Check for immunity
+        if self.immunity_turns > 0:
+            self.immunity_turns -= 1
 
-                # Apply combo multiplier if combo exists
-                if combo_counter > 0:  # Changed from > 1 to > 0
-                    base_damage = int(base_damage * 1.5)  # Apply 50% bonus damage
-                
-                if hasattr(self, "attack_target") and self.attack_target:
-                    damage_done = self.attack_target.take_damage(base_damage)
-                    heal_amount = int(base_damage * 0.20)
-                    self.target_health = min(self.max_hp, self.target_health + heal_amount)
-                    # Add energy when getting healed from lifesteal
-                    self.target_energy = min(self.max_energy, self.target_energy + 15)
-                    
-                    # Add damage number
-                    damage_numbers.append(DamageNumber(
-                        self.attack_target.rect.centerx, 
-                        self.attack_target.rect.y,
-                        damage_done,
-                        (255, 0, 0)
-                    ))
-                    # Add heal number
-                    damage_numbers.append(DamageNumber(
-                        self.rect.centerx,
-                        self.rect.y,
-                        heal_amount,
-                        (0, 255, 0)
-                    ))
+        # Handle animation updates
+        if current_time - self.update_time > animation_cooldown:
+            self.update_time = current_time
+            self.frame_index += 1
 
-                    # Combo system (removed duplicate global declaration)
-                    combo_counter += 1
-                    if combo_counter > 1:
-                        damage_numbers.append(ComboText(
-                            self.rect.centerx - 100,
-                            self.rect.y - 50,
-                            combo_counter
-                        ))
+            # Handle different animation states
+            if self.is_dying:
+                if self.frame_index >= len(self.animation_list[2]):
+                    self.frame_index = len(self.animation_list[2]) - 1
+                    self.is_dead = True
+                    self.is_dying = False
+            elif self.action == 1:  # Attack animation
+                if self.frame_index >= len(self.animation_list[1]):
+                    self.frame_index = 0
+                    self.action = 0
+                    self.attacking = False
+                    self.attack_applied = False
+            else:  # Idle animation
+                if self.frame_index >= len(self.animation_list[0]):
+                    self.frame_index = 0
 
-                self.attack_applied = True
+        # Update current frame safely
+        if (self.action < len(self.animation_list) and 
+            self.frame_index < len(self.animation_list[self.action])):
+            self.image = self.animation_list[self.action][self.frame_index]
 
-    def take_damage(self, amount):
-        damage_taken = max(0, amount - self.defense)
-        self.target_health -= damage_taken
-        return damage_taken
+        # Handle attack damage
+        if self.action == 1 and not self.attack_applied and self.frame_index == len(self.animation_list[1]) - 2:
+            if hasattr(self, "attack_target") and self.attack_target:
+                self.apply_attack_damage()
 
-    def attack(self, target):
-        if not self.attacking and self.current_energy >= 20:
-            self.attacking = True
-            self.attack_applied = False
-            self.action = 1
-            self.attack_target = target
-            self.frame_index = 0
-            self.target_energy = max(0, self.target_energy - 20)  # Consume 20 stamina
-            pygame.mixer.Sound.play(attack_sfx)
-            
-    def use_skill(self, skill_name):
-        if skill_name == "Blood Sacrifice":
-            bonus = int((self.max_hp - self.target_health) * 0.2)
-            self.strength += bonus
-        elif skill_name == "Activate Bleed":
-            self.bleed_level = 1
+        # Update stats directly
+        if not self.is_dead:
+            self.update_health()
+            self.update_energy()
 
-    def apply_bleed(self, stacks):
-        self.bleed_level = min(7 if self.bleed_upgrade else 3, self.bleed_level + stacks)
+    def apply_attack_damage(self):
+        base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
+        damage_done = self.attack_target.take_damage(base_damage)
+        
+        # Show damage number or Miss!
+        damage_numbers.append(DamageNumber(
+            self.attack_target.rect.centerx,
+            self.attack_target.rect.y,
+            "Miss!" if damage_done == 0 else damage_done, 
+            (255, 255, 255) if damage_done == 0 else (255, 0, 0)
+        ))
+        
+        # Only apply lifesteal if damage was actually dealt
+        if damage_done > 0 and isinstance(self, BloodReaper):
+            heal_amount = int(damage_done * 0.20)
+            if heal_amount > 0:
+                self.target_health = min(self.max_hp, self.target_health + heal_amount)
+                self.target_energy = min(self.max_energy, self.target_energy + 15)
+                damage_numbers.append(DamageNumber(
+                    self.rect.centerx,
+                    self.rect.y,
+                    heal_amount,
+                    (0, 255, 0)
+                ))
+        
+        self.attack_applied = True
 
-    def bleed_effect(self, target):
-        if self.bleed_level > 0:
-            bleed_damage = int(5 + self.bleed_level * 2)
-            target.take_damage(bleed_damage)
-            if self.bleed_upgrade:
-                self.target_health = min(self.max_hp, self.target_health + int(bleed_damage * 0.1))
+    def draw(self):
+        """Draw the entity's current image to the screen"""
+        screen.blit(self.image, self.rect)
 
-    def apply_upgrade(self, option):
-        if option == "ATK+7":
-            self.strength += 7
-        elif option == "AGI+7":
-            self.agility += 7
-        elif option == "HP+10":
-            self.max_hp += 10
-        elif option == "Upgrade Life Steal":
-            pass  # Bisa ditambahkan multiplier heal
-        elif option == "Upgrade Blood Sacrifice":
-            pass
-        elif option == "Unlock Bleed":
-            self.bleed_level = 1
-        elif option == "Bleed+%":
-            pass
-        elif option == "Blood Frenzy":
-            self.bleed_upgrade = True
-        elif option == "Double Trouble":
-            self.double_attack = True
+    def draw_health_bar_panel(self, x, y):
+        transition_width = 0
+        transition_color = (255, 0, 0)
+
+        # Character name
+        name_text = font_ui.render(self.name.replace("_", " "), True, (255, 255, 255))
+        name_rect = name_text.get_rect(center=(x + self.health_bar_length // 2, y - 25))
+        screen.blit(name_text, name_rect)
+
+        # Health bar transition
+        if self.current_health < self.target_health:
+            self.current_health += self.health_change_speed
+            if self.current_health > self.target_health:
+                self.current_health = self.target_health
+            transition_width = int((self.target_health - self.current_health) / self.health_ratio)
+            transition_color = (0, 255, 0)
+        elif self.current_health > self.target_health:
+            self.current_health -= self.health_change_speed
+            if self.current_health < self.target_health:
+                self.current_health = self.target_health
+            transition_width = int((self.current_health - self.target_health) / self.health_ratio)
+            transition_color = (255, 255, 0)
+
+        health_bar_width = int(self.current_health / self.health_ratio)
+        health_bar = pygame.Rect(x, y, health_bar_width, 15)
+        transition_bar = pygame.Rect(x + health_bar_width, y, transition_width, 15)
+
+        pygame.draw.rect(screen, (255, 0, 0), health_bar)
+        pygame.draw.rect(screen, transition_color, transition_bar)
+        pygame.draw.rect(screen, (255,255,255), (x, y, self.health_bar_length, 15), 4)
+
+    def draw_energy_bar_panel(self, x, y):
+        transition_color = (200, 200, 0)
+        transition_width = 0
+
+        if self.current_energy < self.target_energy:
+            self.current_energy += self.energy_change_speed
+            if self.current_energy > self.target_energy:
+                self.current_energy = self.target_energy
+            transition_width = int((self.target_energy - self.current_energy) / self.energy_ratio)
+            transition_color = (200, 200, 0)
+        elif self.current_energy > self.target_energy:
+            self.current_energy -= self.energy_change_speed
+            if self.current_energy < self.target_energy:
+                self.current_energy = self.target_energy
+            transition_width = int((self.current_energy - self.target_energy) / self.energy_ratio)
+            transition_color = (255, 255, 0)
+
+        energy_bar_width = int(self.current_energy / self.energy_ratio)
+        energy_bar = pygame.Rect(x, y, energy_bar_width, 15)
+        transition_bar = pygame.Rect(x + energy_bar_width, y, transition_width, 15)
+
+        pygame.draw.rect(screen, (255, 255, 0), energy_bar)
+        pygame.draw.rect(screen, transition_color, transition_bar)
+        pygame.draw.rect(screen, (255,255,255), (x, y, self.energy_bar_length, 15), 4)
 
 class Boss(Entity):
+    def __init__(self, x, y, max_hp, strength, potion, name, scale):
+        super().__init__(x, y, max_hp, strength, potion, name, scale)
+        self.entity_type = "boss"  # Set type for Boss
+
     def load_animations(self, scale):
         # load idle animation
         temp_list = []
@@ -484,6 +636,28 @@ class Boss(Entity):
 
     def update(self):
         animation_cooldown = 150
+        current_time = pygame.time.get_ticks()
+
+        # Check for death first
+        if self.target_health <= 0 and not self.is_dying and not self.is_dead:
+            self.is_dying = True
+            self.action = 2  # Death animation index
+            self.frame_index = 0
+            pygame.mixer.Sound.play(deathboss1_sfx)
+            return
+
+        # Handle death animation first
+        if self.is_dying or self.is_dead:
+            if current_time - self.update_time > animation_cooldown:
+                if self.is_dying:
+                    if self.frame_index < len(self.animation_list[2]) - 1:
+                        self.frame_index += 1
+                    else:
+                        self.is_dead = True
+                        self.is_dying = False
+            self.image = self.animation_list[2][self.frame_index]
+            return
+
         if self.action < len(self.animation_list):
             frames = self.animation_list[self.action]
             if self.frame_index >= len(frames):
@@ -531,25 +705,20 @@ class Boss(Entity):
                 global enemy_has_attacked
                 enemy_has_attacked = True
 
+        # Call parent class methods for stat updates
         self.update_health()
         self.update_energy()
-
-  # Tandai sudah menyerang
-
-
-    def draw(self):
-        screen.blit(self.image, self.rect)
 
     def draw_health_bar_panel(self, x, y):
         transition_width = 0
         transition_color = (255, 0, 0)
 
-        # Nama karakter
+        # Character name
         name_text = font_ui.render(self.name.replace("_", " "), True, (255, 255, 255))
         name_rect = name_text.get_rect(center=(x + self.health_bar_length // 2, y - 25))
         screen.blit(name_text, name_rect)
 
-        # Transisi health
+        # Health bar transition
         if self.current_health < self.target_health:
             self.current_health += self.health_change_speed
             if self.current_health > self.target_health:
@@ -596,20 +765,9 @@ class Boss(Entity):
         pygame.draw.rect(screen, transition_color, transition_bar)
         pygame.draw.rect(screen, (255,255,255), (x, y, self.energy_bar_length, 15), 4)
 
-    def update_health(self):
-        self.target_health = max(0, min(self.target_health, self.max_hp))
-
-    def update_energy(self):
-        self.target_energy = max(0, min(self.target_energy, self.max_energy))
-    
-    def take_damage(self, amount):
-        damage_taken = amount  # No defense for boss, can be modified if needed
-        self.target_health -= damage_taken
-        return damage_taken
-
 class DeathSentry(Boss):
     def __init__(self, x, y, scale):
-        super().__init__(x, y, max_hp=2000, strength=30, potion=3, name="DeathSentry", scale=scale)
+        super().__init__(x, y, max_hp=2000, strength=300, potion=3, name="DeathSentry", scale=scale)
         self.max_energy = 500  # Total energy points
         self.target_energy = self.max_energy
         self.current_energy = self.max_energy
@@ -638,6 +796,124 @@ class DeathSentry(Boss):
         self.damage_number_index = 0  # Track which number we're showing
         self.next_damage_number_time = 0  # When to show next number
 
+        # Load DeathSentry specific animations
+        # Load death animation first before other animations
+        temp_list = []
+        for i in range(14):
+            img = pygame.image.load(f'img/{self.name}/Death/{i+1}.png')
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)  # This becomes index 2
+
+        # Then load skill and ultimate animations
+        # Skill animation (index 3)
+        temp_list = []
+        for i in range(7):  # Load 7 skill frames
+            img = pygame.image.load(f'img/{self.name}/Skill/{i+1}.png').convert_alpha()
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+
+        # Ultimate animation (index 4)  
+        temp_list = []
+        for i in range(14):  # Load 14 ultimate frames
+            img = pygame.image.load(f'img/{self.name}/Ultimate/{i+1}.png').convert_alpha()
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+
+        # Load animations in correct order
+        self.animation_list = []  # Reset animation list
+        
+        # Load idle animation (index 0)
+        temp_list = []
+        for i in range(9):
+            img = pygame.image.load(f'img/{self.name}/Idle/{i+1}.png')
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+        
+        # Load attack animation (index 1)
+        temp_list = []
+        for i in range(8):
+            img = pygame.image.load(f'img/{self.name}/Attack/{i+1}.png')
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+        
+        # Load death animation (index 2)
+        temp_list = []
+        for i in range(14):
+            img = pygame.image.load(f'img/{self.name}/Death/{i+1}.png')
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+        
+        # Then load skill and ultimate
+        # Skill animation (index 3)
+        temp_list = []
+        for i in range(7):  # Load 7 skill frames
+            img = pygame.image.load(f'img/{self.name}/Skill/{i+1}.png').convert_alpha()
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+
+        # Ultimate animation (index 4)  
+        temp_list = []
+        for i in range(14):  # Load 14 ultimate frames
+            img = pygame.image.load(f'img/{self.name}/Ultimate/{i+1}.png').convert_alpha()
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+
+    def attack(self, target):
+        if not self.is_dying and not self.is_dead:
+            if not self.attacking and not self.using_skill and not self.using_ultimate:
+                # Check for ultimate condition first
+                health_percent = (self.target_health / self.max_hp) * 100
+                if health_percent < 50 and self.current_energy >= self.ultimate_energy_cost:
+                    self.use_ultimate(target)
+                # Then check for skill with increased probability
+                elif self.current_energy >= self.skill_energy_cost and random.random() < 0.4:
+                    self.use_skill()
+                    self.attack_target = target
+                else:
+                    super().attack(target)
+
+    def use_skill(self):
+        if len(self.animation_list) > 3:
+            self.using_skill = True
+            self.skill_applied = False
+            self.action = 3
+            self.frame_index = 0
+            self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
+            pygame.mixer.Sound.play(skillboss1_sfx)
+            
+            # Set immunity for both boss and BloodReaper instantly
+            self.immunity_turns = 2 
+            blood_reaper.immunity_turns = 2
+            
+            # Ensure attack can't be performed during immunity
+            return True
+
+    def use_ultimate(self, target):
+        if len(self.animation_list) > 4:  # Make sure ultimate animation exists
+            self.frame_index = 0
+            self.using_ultimate = True
+            self.ultimate_applied = False
+            self.action = 4
+            self.ultimate_start_time = pygame.time.get_ticks()
+            self.original_pos = self.rect.center
+            self.rect.center = (screen_width // 2 - 1100, screen_height // 2 - 250)
+            self.attack_target = target
+            self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
+            pygame.mixer.Sound.play(monster_sfx)
+            pygame.mixer.Sound.play(ultimateboss1_sfx)
+            if hasattr(self, "attack_target"):
+                self.attack_target.take_damage(self.ultimate_damage)
+            self.damage_number_index = 0
+            self.next_damage_number_time = self.ultimate_start_time + 1000
+
     def update(self):
         animation_cooldown = 150
         current_time = pygame.time.get_ticks()
@@ -650,11 +926,12 @@ class DeathSentry(Boss):
                     self.damage_number_index += 1
                     self.next_damage_number_time = current_time + self.damage_number_delay
 
-        if self.using_skill:
-            if pygame.time.get_ticks() - self.update_time > animation_cooldown:
-                self.update_time = pygame.time.get_ticks()
+        # Check if animations exist before using them
+        if self.using_skill and len(self.animation_list) > 3:
+            if current_time - self.update_time > animation_cooldown:
+                self.update_time = current_time
                 self.frame_index += 1
-                if self.frame_index >= len(self.animation_list[3]):  # Skill animation
+                if self.frame_index >= len(self.animation_list[3]):
                     self.frame_index = 0
                     self.action = 0
                     self.using_skill = False
@@ -662,11 +939,11 @@ class DeathSentry(Boss):
             self.image = self.animation_list[3][self.frame_index]
             return
 
-        if self.using_ultimate:
-            if pygame.time.get_ticks() - self.update_time > animation_cooldown:
-                self.update_time = pygame.time.get_ticks()
+        if self.using_ultimate and len(self.animation_list) > 4:
+            if current_time - self.update_time > animation_cooldown:
+                self.update_time = current_time
                 self.frame_index += 1
-                if self.frame_index >= len(self.animation_list[4]):  # Ultimate animation
+                if self.frame_index >= len(self.animation_list[4]):
                     self.frame_index = 0
                     self.action = 0
                     self.using_ultimate = False
@@ -676,76 +953,35 @@ class DeathSentry(Boss):
             self.image = self.animation_list[4][self.frame_index]
             return
 
-        # Check if health is 0 and death animation hasn't started
+        # Death takes priority over everything
         if self.target_health <= 0 and not self.is_dying and not self.is_dead:
             self.is_dying = True
             self.action = 2  # Switch to death animation
             self.frame_index = 0
-            pygame.mixer.Sound.play(deathboss1_sfx)  # Play death sound when starting to die
-            
-        if self.is_dying:
-            # Handle death animation
-            if pygame.time.get_ticks() - self.update_time > animation_cooldown:
-                self.update_time = pygame.time.get_ticks()
-                self.frame_index += 1
-                if self.frame_index >= 4:  # Hardcode 4 frames since we know the count
-                    self.frame_index = 3  # Stay on last frame
+            pygame.mixer.Sound.play(deathboss1_sfx)
+            return
+
+        # Handle death animation
+        if self.is_dying or self.is_dead:
+            if current_time - self.update_time > animation_cooldown:
+                if self.frame_index < len(self.animation_list[2]) - 1:
+                    self.frame_index += 1
+                    self.update_time = current_time
+                else:
                     self.is_dead = True
-                    self.is_dying = False
             self.image = self.animation_list[2][self.frame_index]
-        else:
-            # Normal update for other states
-            super().update()
+            return
 
-    def attack(self, target):
-        if not self.is_dying and not self.is_dead:
-            # Check for ultimate condition first
-            health_percent = (self.target_health / self.max_hp) * 100
-            if health_percent < 50 and self.current_energy >= self.ultimate_energy_cost:
-                self.use_ultimate(target)
-            # Then check for skill
-            elif self.current_energy >= self.skill_energy_cost and random.random() < 0.3:
-                self.use_skill()
-            else:
-                super().attack(target)
+        # Normal attack/idle animations
+        super().update()
 
-    def use_skill(self):
-        self.using_skill = True
-        self.skill_applied = False
-        self.action = 3  # Index for skill animation
-        self.frame_index = 0
-        self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
-        self.immunity_turns = 2
-        pygame.mixer.Sound.play(skillboss1_sfx)
-
-    def use_ultimate(self, target):
-        self.using_ultimate = True
-        self.ultimate_applied = False
-        self.ultimate_damage_shown = False  # Reset flag
-        self.action = 4  # Index for ultimate animation
-        self.frame_index = 0
-        self.ultimate_start_time = pygame.time.get_ticks()  # Record start time
-        
-        # Store original position
-        self.original_pos = self.rect.center
-        # Move to center screen for ultimate - Ubah angka untuk mengatur posisi
-        self.rect.center = (screen_width // 2 - 1100, screen_height // 2 - 250)  # Sesuaikan nilai -100 dan -200
-        
-        self.attack_target = target
-        self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
-        
-        if self.image in self.animation_list[4]:
-            self.image = pygame.transform.flip(self.image, True, False)
-
-        pygame.mixer.Sound.play(monster_sfx)
-        pygame.mixer.Sound.play(ultimateboss1_sfx) # Add ultimate sound effect
-        # Remove the immediate damage numbers display
-        if hasattr(self, "attack_target"):
-            self.attack_target.take_damage(self.ultimate_damage)
-        
-        # New: Initialize damage number display variables
-        self.damage_number_index = 0
-        self.next_damage_number_time = self.ultimate_start_time + 1000  # Start after 1 second
+        # Handle ultimate damage numbers
+        if self.using_ultimate and self.damage_number_index < 5:
+            if current_time - self.ultimate_start_time >= 1000:
+                if current_time >= self.next_damage_number_time:
+                    self.show_next_damage_number()
+                    self.damage_number_index += 1
+                    self.next_damage_number_time = current_time + self.damage_number_delay
 
     def show_next_damage_number(self):
         if hasattr(self, "attack_target"):
@@ -760,16 +996,9 @@ class DeathSentry(Boss):
                 lifetime=120
             ))
 
-    def take_damage(self, amount):
-        if self.immunity_turns > 0:
-            return 0  # No damage taken while immune
-        if not self.is_dying and not self.is_dead:
-            return super().take_damage(amount)
-        return 0
-
-# Buat karakter dan musuh
-BloodReaper = BloodReaper(501, 500, scale=4.2)
-DeathSentry = DeathSentry(1300, 400, scale=8.5)
+# Create character instances - MOVED DOWN here after all class definitions
+blood_reaper = BloodReaper(501, 500, scale=4.2)
+death_sentry = DeathSentry(1300, 400, scale=8.5)
 
 def switch_turns():
     global current_turn, enemy_has_attacked, turn_switch_time, player_turn_counter, enemy_turn_counter
@@ -782,14 +1011,14 @@ def switch_turns():
     enemy_turn_counter += 1
     
     if player_turn_counter >= 6:
-        BloodReaper.target_energy = min(BloodReaper.max_energy, BloodReaper.target_energy + 15)
+        blood_reaper.target_energy = min(blood_reaper.max_energy, blood_reaper.target_energy + 15)
         player_turn_counter = 0
     
     if enemy_turn_counter >= 3:
-        DeathSentry.target_energy = min(DeathSentry.max_energy, DeathSentry.target_energy + 15)
+        death_sentry.target_energy = min(death_sentry.max_energy, death_sentry.target_energy + 15)
         enemy_turn_counter = 0
-        if DeathSentry.immunity_turns > 0:
-            DeathSentry.immunity_turns -= 1
+        if death_sentry.immunity_turns > 0:
+            death_sentry.immunity_turns -= 1
 
 # Main game loop
 run = True
@@ -797,15 +1026,16 @@ while run:
     clock.tick(fps)
     draw_background()
     draw_panel()
+    now = pygame.time.get_ticks()  # Add this line to define 'now'
 
-    for character in [BloodReaper, DeathSentry]:
+    for character in [blood_reaper, death_sentry]:
         character.update()
         character.draw()
 
-    BloodReaper.draw_health_bar_panel(x=350, y=790)
-    BloodReaper.draw_energy_bar_panel(x=350, y=810)
-    DeathSentry.draw_health_bar_panel(x=1200, y=790)
-    DeathSentry.draw_energy_bar_panel(x=1200, y=810)
+    blood_reaper.draw_health_bar_panel(x=350, y=790)
+    blood_reaper.draw_energy_bar_panel(x=350, y=810)
+    death_sentry.draw_health_bar_panel(x=1200, y=790)
+    death_sentry.draw_energy_bar_panel(x=1200, y=810)
 
     draw_turn_text()
 
@@ -813,25 +1043,24 @@ while run:
         if event.type == pygame.QUIT:
             run = False
 
-        # Input hanya berlaku saat giliran player
+        # Input hanya berlaku saat giliran player dan BloodReaper belum mati
         if current_turn == "player":
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_s and not BloodReaper.attacking:
-                    BloodReaper.attack(DeathSentry)
+                if event.key == pygame.K_s and not blood_reaper.attacking and not blood_reaper.is_dead:
+                    blood_reaper.attack(death_sentry)
                     current_turn = "enemy"
                     enemy_has_attacked = False
                     turn_switch_time = pygame.time.get_ticks()
                     start_turn_notification()
 
-    # Giliran musuh menyerang otomatis setelah delay
-    now = pygame.time.get_ticks()
-    if current_turn == "enemy":
+    # Giliran musuh hanya jika BloodReaper belum mati
+    if current_turn == "enemy" and not death_sentry.is_dead:
         if now - turn_switch_time > turn_switch_delay:
-            if not DeathSentry.attacking and not enemy_has_attacked:
-                DeathSentry.attack(BloodReaper)
+            if not death_sentry.attacking and not enemy_has_attacked:
+                death_sentry.attack(blood_reaper)
                 enemy_has_attacked = True
 
-            if not DeathSentry.attacking and enemy_has_attacked:
+            if not death_sentry.attacking and enemy_has_attacked:
                 switch_turns()
 
     # Update and draw damage numbers and combo texts
