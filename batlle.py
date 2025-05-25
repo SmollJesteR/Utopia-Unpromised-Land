@@ -25,6 +25,11 @@ boss1_sfx = pygame.mixer.Sound('Assets/SFX/BA_DS.wav')
 deathboss1_sfx = pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 skillboss1_sfx = pygame.mixer.Sound('Assets/SFX/Skill_DS.wav')
 ultimateboss1_sfx = pygame.mixer.Sound('Assets/SFX/Ultimate_DS.wav')
+deathsentryhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DS.wav')
+deathsentryshieldhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_SHIELD_DS.wav')
+deathbloodreaper_sfx = pygame.mixer.Sound('Assets/SFX/Death_BR.wav')
+basiccombo_sfx = pygame.mixer.Sound('Assets/SFX/combo2,3,.wav')
+morecombo_sfx = pygame.mixer.Sound('Assets/SFX/combo4,-.wav')
 
 clock = pygame.time.Clock()
 fps = 60
@@ -59,6 +64,7 @@ turn_notification_start = 0  # waktu mulai notifikasi (ms)
 
 player_turn_counter = 0
 enemy_turn_counter = 0
+round_counter = 0  # Add this line
 
 # Add combo counter variables
 combo_counter = 0
@@ -127,7 +133,8 @@ class ComboText:
         self.x = x
         self.y = y
         self.text = f"Combo {combo_count}!"
-        self.color = (255, 215, 0)  # Gold color
+        # Change color based on combo count
+        self.color = (255, 0, 0) if combo_count >= 4 else (255, 215, 0)  # Red for 4+ combos, gold otherwise
         self.alpha = 255
         self.lifetime = 60
 
@@ -207,6 +214,10 @@ class Entity():
         self.immunity_turns = 0  # Add immunity counter
 
     def attack(self, target):
+        # Check if target is dead before allowing attack
+        if isinstance(target, DeathSentry) and (target.is_dead or target.is_dying):
+            return
+            
         # Check immunity and death state before allowing attack
         if self.is_dead or self.is_dying or self.immunity_turns > 0:
             return
@@ -227,6 +238,8 @@ class Entity():
             return 0  # Return 0 damage if immune
         self.target_health -= amount
         return amount
+
+        return super().take_damage(amount)  # Return damage taken when no shield        
 
     def update_health(self):
         """Update health values within bounds"""
@@ -311,29 +324,64 @@ class Entity():
             self.update_energy()
 
     def apply_attack_damage(self):
+        # Apply combo multiplier
+        combo_multiplier = 1 + (self.combo_count * 0.5)  # Each combo adds 50% damage
         base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
-        damage_done = self.attack_target.take_damage(base_damage)
+        total_damage = int(base_damage * combo_multiplier)
+        damage_done = self.attack_target.take_damage(total_damage)
         
-        # Show damage number or Miss!
+        # Track hit success
+        self.last_hit_successful = (damage_done > 0)
+        
+        if isinstance(self.attack_target, DeathSentry):
+            if damage_done == 0:
+                pygame.mixer.Sound.play(deathsentryshieldhit_sfx)
+                self.combo_count = 0
+                self.should_combo = False
+            else:
+                pygame.mixer.Sound.play(deathsentryhit_sfx)
+                self.should_combo = True
+                # Show combo text immediately if combo is active
+                if self.combo_count > 0:
+                    next_combo = self.combo_count + 1
+                    # Play appropriate combo sound
+                    if next_combo in [2, 3]:
+                        pygame.mixer.Sound.play(basiccombo_sfx)
+                    elif next_combo >= 4:
+                        pygame.mixer.Sound.play(morecombo_sfx)
+                    
+                    combo_text = ComboText(
+                        self.rect.centerx - 50,
+                        self.rect.centery - 100,
+                        next_combo
+                    )
+                    damage_numbers.append(combo_text)
+
+        # Show damage number for enemy
         damage_numbers.append(DamageNumber(
             self.attack_target.rect.centerx,
-            self.attack_target.rect.y,
-            "Miss!" if damage_done == 0 else damage_done, 
+            self.attack_target.rect.y - 50,  # Position above enemy
+            "Miss!" if damage_done == 0 else total_damage,
             (255, 255, 255) if damage_done == 0 else (255, 0, 0)
         ))
         
-        # Only apply lifesteal if damage was actually dealt
+        # Only apply lifesteal if damage was dealt and health isn't full
         if damage_done > 0 and isinstance(self, BloodReaper):
-            heal_amount = int(damage_done * 0.20)
-            if heal_amount > 0:
-                self.target_health = min(self.max_hp, self.target_health + heal_amount)
-                self.target_energy = min(self.max_energy, self.target_energy + 15)
-                damage_numbers.append(DamageNumber(
-                    self.rect.centerx,
-                    self.rect.y,
-                    heal_amount,
-                    (0, 255, 0)
-                ))
+            missing_health = self.max_hp - self.target_health
+            if missing_health > 0:
+                heal_amount = min(int(damage_done * 0.20), missing_health)  # Cap healing at missing health
+                if heal_amount > 0:
+                    self.target_health += heal_amount
+                    # Only show healing number if actually healed
+                    damage_numbers.append(DamageNumber(
+                        self.rect.centerx,
+                        self.rect.y - 50,
+                        heal_amount,
+                        (0, 255, 0)
+                    ))
+                    
+            # Energy gain happens regardless of healing
+            self.target_energy = min(self.max_energy, self.target_energy + 15)
         
         self.attack_applied = True
 
@@ -350,24 +398,31 @@ class Entity():
         name_rect = name_text.get_rect(center=(x + self.health_bar_length // 2, y - 25))
         screen.blit(name_text, name_rect)
 
+        # Calculate health bar width first
+        health_bar_width = int(max(0, self.current_health / self.health_ratio))
+        health_bar = pygame.Rect(x, y, health_bar_width, 15)
+
         # Health bar transition
-        if self.current_health < self.target_health:
-            self.current_health += self.health_change_speed
-            if self.current_health > self.target_health:
-                self.current_health = self.target_health
-            transition_width = int((self.target_health - self.current_health) / self.health_ratio)
-            transition_color = (0, 255, 0)
-        elif self.current_health > self.target_health:
-            self.current_health -= self.health_change_speed
-            if self.current_health < self.target_health:
-                self.current_health = self.target_health
+        if self.current_health > self.target_health:  # Taking damage
+            self.current_health = max(0, max(self.target_health, self.current_health - 1))
             transition_width = int((self.current_health - self.target_health) / self.health_ratio)
             transition_color = (255, 255, 0)
+            
+            # Ensure yellow bar stays within health bar bounds
+            if health_bar_width + transition_width > self.health_bar_length:
+                transition_width = self.health_bar_length - health_bar_width
+            if health_bar_width <= 0:
+                transition_width = 0
+            
+        elif self.current_health < self.target_health:  # Healing
+            self.current_health = min(self.target_health, self.current_health + 1)
+            transition_width = int((self.target_health - self.current_health) / self.health_ratio)
+            transition_color = (0, 255, 0)
 
-        health_bar_width = int(self.current_health / self.health_ratio)
-        health_bar = pygame.Rect(x, y, health_bar_width, 15)
-        transition_bar = pygame.Rect(x + health_bar_width, y, transition_width, 15)
-
+        # Create transition bar with clamped width
+        transition_bar = pygame.Rect(x + health_bar_width, y, max(0, transition_width), 15)
+        
+        # Draw the bars
         pygame.draw.rect(screen, (255, 0, 0), health_bar)
         pygame.draw.rect(screen, transition_color, transition_bar)
         pygame.draw.rect(screen, (255,255,255), (x, y, self.health_bar_length, 15), 4)
@@ -399,12 +454,17 @@ class Entity():
 
 class BloodReaper(Entity):
     def __init__(self, x, y, scale):
-        super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
-        self.entity_type = "player"  # Set type for BloodReaper
+        super().__init__(x, y, max_hp=100, strength=200, potion=3, name="BloodReaper", scale=scale)
+        self.entity_type = "player"  # Set type for BloodReapers
         self.load_animations(scale)
 
         self.immunity_turns = 0  # Add immunity counter
 
+        # Combo tracking
+        self.combo_count = 0
+        self.last_hit_successful = False
+        self.should_combo = False  # Add this line to track if combo should continue
+        
     def load_animations(self, scale):
         # load idle animation
         temp_list = []
@@ -440,7 +500,7 @@ class BloodReaper(Entity):
             self.action = 2
             self.frame_index = 0
             self.original_y = self.rect.y  # Store original Y position
-            pygame.mixer.Sound.play(deathboss1_sfx)
+            pygame.mixer.Sound.play(deathbloodreaper_sfx)
             return
 
         # Handle death animation separately with downward movement
@@ -509,29 +569,64 @@ class BloodReaper(Entity):
             self.update_energy()
 
     def apply_attack_damage(self):
+        # Apply combo multiplier
+        combo_multiplier = 1 + (self.combo_count * 0.5)  # Each combo adds 50% damage
         base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
-        damage_done = self.attack_target.take_damage(base_damage)
+        total_damage = int(base_damage * combo_multiplier)
+        damage_done = self.attack_target.take_damage(total_damage)
         
-        # Show damage number or Miss!
+        # Track hit success
+        self.last_hit_successful = (damage_done > 0)
+        
+        if isinstance(self.attack_target, DeathSentry):
+            if damage_done == 0:
+                pygame.mixer.Sound.play(deathsentryshieldhit_sfx)
+                self.combo_count = 0
+                self.should_combo = False
+            else:
+                pygame.mixer.Sound.play(deathsentryhit_sfx)
+                self.should_combo = True
+                # Show combo text immediately if combo is active
+                if self.combo_count > 0:
+                    next_combo = self.combo_count + 1
+                    # Play appropriate combo sound
+                    if next_combo in [2, 3]:
+                        pygame.mixer.Sound.play(basiccombo_sfx)
+                    elif next_combo >= 4:
+                        pygame.mixer.Sound.play(morecombo_sfx)
+                    
+                    combo_text = ComboText(
+                        self.rect.centerx - 50,
+                        self.rect.centery - 100,
+                        next_combo
+                    )
+                    damage_numbers.append(combo_text)
+
+        # Show damage number for enemy
         damage_numbers.append(DamageNumber(
             self.attack_target.rect.centerx,
-            self.attack_target.rect.y,
-            "Miss!" if damage_done == 0 else damage_done, 
+            self.attack_target.rect.y - 50,  # Position above enemy
+            "Miss!" if damage_done == 0 else total_damage,
             (255, 255, 255) if damage_done == 0 else (255, 0, 0)
         ))
         
-        # Only apply lifesteal if damage was actually dealt
+        # Only apply lifesteal if damage was dealt and health isn't full
         if damage_done > 0 and isinstance(self, BloodReaper):
-            heal_amount = int(damage_done * 0.20)
-            if heal_amount > 0:
-                self.target_health = min(self.max_hp, self.target_health + heal_amount)
-                self.target_energy = min(self.max_energy, self.target_energy + 15)
-                damage_numbers.append(DamageNumber(
-                    self.rect.centerx,
-                    self.rect.y,
-                    heal_amount,
-                    (0, 255, 0)
-                ))
+            missing_health = self.max_hp - self.target_health
+            if missing_health > 0:
+                heal_amount = min(int(damage_done * 0.20), missing_health)  # Cap healing at missing health
+                if heal_amount > 0:
+                    self.target_health += heal_amount
+                    # Only show healing number if actually healed
+                    damage_numbers.append(DamageNumber(
+                        self.rect.centerx,
+                        self.rect.y - 50,
+                        heal_amount,
+                        (0, 255, 0)
+                    ))
+                    
+            # Energy gain happens regardless of healing
+            self.target_energy = min(self.max_energy, self.target_energy + 15)
         
         self.attack_applied = True
 
@@ -548,24 +643,31 @@ class BloodReaper(Entity):
         name_rect = name_text.get_rect(center=(x + self.health_bar_length // 2, y - 25))
         screen.blit(name_text, name_rect)
 
+        # Calculate health bar width first
+        health_bar_width = int(max(0, self.current_health / self.health_ratio))
+        health_bar = pygame.Rect(x, y, health_bar_width, 15)
+
         # Health bar transition
-        if self.current_health < self.target_health:
-            self.current_health += self.health_change_speed
-            if self.current_health > self.target_health:
-                self.current_health = self.target_health
-            transition_width = int((self.target_health - self.current_health) / self.health_ratio)
-            transition_color = (0, 255, 0)
-        elif self.current_health > self.target_health:
-            self.current_health -= self.health_change_speed
-            if self.current_health < self.target_health:
-                self.current_health = self.target_health
+        if self.current_health > self.target_health:  # Taking damage
+            self.current_health = max(0, max(self.target_health, self.current_health - 1))
             transition_width = int((self.current_health - self.target_health) / self.health_ratio)
             transition_color = (255, 255, 0)
+            
+            # Ensure yellow bar stays within health bar bounds
+            if health_bar_width + transition_width > self.health_bar_length:
+                transition_width = self.health_bar_length - health_bar_width
+            if health_bar_width <= 0:
+                transition_width = 0
+            
+        elif self.current_health < self.target_health:  # Healing
+            self.current_health = min(self.target_health, self.current_health + 1)
+            transition_width = int((self.target_health - self.current_health) / self.health_ratio)
+            transition_color = (0, 255, 0)
 
-        health_bar_width = int(self.current_health / self.health_ratio)
-        health_bar = pygame.Rect(x, y, health_bar_width, 15)
-        transition_bar = pygame.Rect(x + health_bar_width, y, transition_width, 15)
-
+        # Create transition bar with clamped width
+        transition_bar = pygame.Rect(x + health_bar_width, y, max(0, transition_width), 15)
+        
+        # Draw the bars
         pygame.draw.rect(screen, (255, 0, 0), health_bar)
         pygame.draw.rect(screen, transition_color, transition_bar)
         pygame.draw.rect(screen, (255,255,255), (x, y, self.health_bar_length, 15), 4)
@@ -598,7 +700,8 @@ class BloodReaper(Entity):
 class Boss(Entity):
     def __init__(self, x, y, max_hp, strength, potion, name, scale):
         super().__init__(x, y, max_hp, strength, potion, name, scale)
-        self.entity_type = "boss"  # Set type for Boss
+        self.entity_type = "boss"
+        self.last_damage_dealt = False  # Add this to track damage
 
     def load_animations(self, scale):
         # load idle animation
@@ -687,17 +790,16 @@ class Boss(Entity):
                 base_damage = self.strength
                 if hasattr(self, "attack_target") and self.attack_target:
                     damage_done = self.attack_target.take_damage(base_damage)
-                    # Add damage number
+                    self.last_damage_dealt = damage_done > 0  # Track if damage was dealt
                     damage_numbers.append(DamageNumber(
                         self.attack_target.rect.centerx,
                         self.attack_target.rect.y,
                         damage_done,
                         (255, 0, 0)
                     ))
-
-                    # Reset combo when player gets hit
-                    global combo_counter
-                    combo_counter = 0  
+                    
+                    if damage_done > 0:
+                        blood_reaper.combo_count = 0 # Reset combo immediately when hit
 
                 self.attack_applied = True
 
@@ -767,7 +869,7 @@ class Boss(Entity):
 
 class DeathSentry(Boss):
     def __init__(self, x, y, scale):
-        super().__init__(x, y, max_hp=2000, strength=300, potion=3, name="DeathSentry", scale=scale)
+        super().__init__(x, y, max_hp=2000, strength=30, potion=3, name="DeathSentry", scale=scale)
         self.max_energy = 500  # Total energy points
         self.target_energy = self.max_energy
         self.current_energy = self.max_energy
@@ -777,7 +879,9 @@ class DeathSentry(Boss):
         self.is_dead = False
         self.attacking = False  # Add this line
         self.attack_applied = False  # Add this line
-        self.immunity_turns = 0
+        self.immunity_turns = 0  # Change this to immunity_hits
+        self.immunity_hits = 0  # Number of hits the shield can take
+        self.max_immunity_hits = 2  # Maximum number of hits shield can take
         self.using_skill = False
         self.skill_applied = False
         self.skill_energy_cost = 45
@@ -785,7 +889,8 @@ class DeathSentry(Boss):
         self.using_ultimate = False
         self.ultimate_applied = False
         self.ultimate_energy_cost = 75
-        self.ultimate_damage = 50  # Changed from 75 to 50 to accommodate 5x10 damage
+        self.ultimate_damage = 70  # Total damage (20 initial + 5x10)
+        self.initial_ultimate_damage = 20  # Initial burst damage
         self.ultimate_start_time = 0  # Add this line to track when ultimate starts
         self.damage_numbers_delay = 1000  # 1 second delay for damage numbers
         self.damage_number_spacing = 40  # Increased vertical spacing between numbers
@@ -867,6 +972,7 @@ class DeathSentry(Boss):
         self.animation_list.append(temp_list)
 
     def attack(self, target):
+        self.last_damage_dealt = False  # Reset at start of attack
         if not self.is_dying and not self.is_dead:
             if not self.attacking and not self.using_skill and not self.using_ultimate:
                 # Check for ultimate condition first
@@ -874,11 +980,22 @@ class DeathSentry(Boss):
                 if health_percent < 50 and self.current_energy >= self.ultimate_energy_cost:
                     self.use_ultimate(target)
                 # Then check for skill with increased probability
-                elif self.current_energy >= self.skill_energy_cost and random.random() < 0.4:
-                    self.use_skill()
+                elif self.current_energy >= self.skill_energy_cost and random.random() < 0.3:
+                    self.use_skill()  # Changed from self.using_skill()
                     self.attack_target = target
                 else:
                     super().attack(target)
+                    
+    def take_damage(self, amount):
+        if self.immunity_hits > 0:
+            self.immunity_hits -= 1
+            return 0  # No damage taken while shield active
+            
+        # Shield breaks after taking max hits
+        if self.immunity_hits <= 0:
+            self.immunity_turns = 0  # Reset immunity turns
+            
+        return super().take_damage(amount)  # Return damage taken when no shield        
 
     def use_skill(self):
         if len(self.animation_list) > 3:
@@ -889,30 +1006,19 @@ class DeathSentry(Boss):
             self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
             pygame.mixer.Sound.play(skillboss1_sfx)
             
-            # Set immunity for both boss and BloodReaper instantly
-            self.immunity_turns = 2 
-            blood_reaper.immunity_turns = 2
-            
-            # Ensure attack can't be performed during immunity
+            # Set immunity without dealing damage
+            self.immunity_hits = self.max_immunity_hits  # Reset shield hits to maximum
+            blood_reaper.should_combo = False  # Reset combo potential during immunity
             return True
+        return False
 
-    def use_ultimate(self, target):
-        if len(self.animation_list) > 4:  # Make sure ultimate animation exists
-            self.frame_index = 0
-            self.using_ultimate = True
-            self.ultimate_applied = False
-            self.action = 4
-            self.ultimate_start_time = pygame.time.get_ticks()
-            self.original_pos = self.rect.center
-            self.rect.center = (screen_width // 2 - 1100, screen_height // 2 - 250)
-            self.attack_target = target
-            self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
-            pygame.mixer.Sound.play(monster_sfx)
-            pygame.mixer.Sound.play(ultimateboss1_sfx)
-            if hasattr(self, "attack_target"):
-                self.attack_target.take_damage(self.ultimate_damage)
-            self.damage_number_index = 0
-            self.next_damage_number_time = self.ultimate_start_time + 1000
+    def update_health(self):
+        """Update health values within bounds"""
+        self.target_health = max(0, min(self.target_health, self.max_hp))
+
+    def update_energy(self):
+        """Update energy values within bounds"""
+        self.target_energy = max(0, min(self.target_energy, self.max_energy))
 
     def update(self):
         animation_cooldown = 150
@@ -982,10 +1088,19 @@ class DeathSentry(Boss):
                     self.show_next_damage_number()
                     self.damage_number_index += 1
                     self.next_damage_number_time = current_time + self.damage_number_delay
-
     def show_next_damage_number(self):
         if hasattr(self, "attack_target"):
             start_y = self.attack_target.rect.y - 100
+            # Play sound and apply 10 damage per tick
+            pygame.mixer.Sound.play(monster_sfx)
+            damage_done = self.attack_target.take_damage(10)
+            self.last_damage_dealt = (damage_done > 0)  # Track if damage was dealt
+            
+            # Reset combo when ultimate hits
+            if isinstance(self.attack_target, BloodReaper) and damage_done > 0:
+                self.attack_target.combo_count = 0
+                self.attack_target.should_combo = False
+            
             damage_numbers.append(DamageNumber(
                 self.attack_target.rect.centerx,
                 start_y + (self.damage_number_index * 40),
@@ -1001,7 +1116,19 @@ blood_reaper = BloodReaper(501, 500, scale=4.2)
 death_sentry = DeathSentry(1300, 400, scale=8.5)
 
 def switch_turns():
-    global current_turn, enemy_has_attacked, turn_switch_time, player_turn_counter, enemy_turn_counter
+    global current_turn, enemy_has_attacked, turn_switch_time, player_turn_counter, enemy_turn_counter, round_counter
+    
+    # Check for combo continuation
+    if current_turn == "enemy":
+        if blood_reaper.last_hit_successful and not death_sentry.last_damage_dealt:
+            blood_reaper.combo_count += 1  # Increment combo counter
+        elif death_sentry.last_damage_dealt:
+            blood_reaper.combo_count = 0
+            blood_reaper.should_combo = False
+    
+    # Reset hit tracking
+    death_sentry.last_damage_dealt = False
+    
     current_turn = "player"
     enemy_has_attacked = False
     turn_switch_time = pygame.time.get_ticks()
@@ -1009,7 +1136,14 @@ def switch_turns():
     
     player_turn_counter += 1
     enemy_turn_counter += 1
+    round_counter += 1  # Increment round counter
     
+    # Energy recovery every 2 rounds
+    if round_counter % 2 == 0:
+        blood_reaper.target_energy = min(blood_reaper.max_energy, blood_reaper.target_energy + 10)
+        death_sentry.target_energy = min(death_sentry.max_energy, death_sentry.target_energy + 10)
+    
+    # Existing turn energy regen
     if player_turn_counter >= 6:
         blood_reaper.target_energy = min(blood_reaper.max_energy, blood_reaper.target_energy + 15)
         player_turn_counter = 0
@@ -1017,8 +1151,6 @@ def switch_turns():
     if enemy_turn_counter >= 3:
         death_sentry.target_energy = min(death_sentry.max_energy, death_sentry.target_energy + 15)
         enemy_turn_counter = 0
-        if death_sentry.immunity_turns > 0:
-            death_sentry.immunity_turns -= 1
 
 # Main game loop
 run = True
