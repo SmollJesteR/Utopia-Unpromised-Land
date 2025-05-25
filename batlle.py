@@ -32,76 +32,65 @@ basiccombo_sfx = pygame.mixer.Sound('Assets/SFX/combo2,3,.wav')
 morecombo_sfx = pygame.mixer.Sound('Assets/SFX/combo4,-.wav')
 
 clock = pygame.time.Clock()
-fps = 60
+fps = 180
 
-screen_width = 1920
-screen_height = 1080
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Battle Sequence")
+# Get the user's screen info
+screen_info = pygame.display.Info()
+DESIGN_WIDTH = 1920  # Original design width
+DESIGN_HEIGHT = 1080  # Original design height
 
+# Calculate scaling factors
+scale_x = screen_info.current_w / DESIGN_WIDTH
+scale_y = screen_info.current_h / DESIGN_HEIGHT
+scale_factor = min(scale_x, scale_y)  # Use the smaller scale to maintain aspect ratio
+
+# Calculate actual screen dimensions
+screen_width = int(DESIGN_WIDTH * scale_factor)
+screen_height = int(DESIGN_HEIGHT * scale_factor)
+
+# Calculate padding to center the game
+padding_x = (screen_info.current_w - screen_width) // 2
+padding_y = (screen_info.current_h - screen_height) // 2
+
+# Create the screen
+screen = pygame.display.set_mode((screen_info.current_w, screen_info.current_h))
+game_surface = pygame.Surface((DESIGN_WIDTH, DESIGN_HEIGHT))
+
+def scale_pos(x, y):
+    """Scale position from design coordinates to actual screen coordinates"""
+    return (int(x * scale_factor) + padding_x, 
+            int(y * scale_factor) + padding_y)
+
+def scale_rect(rect):
+    """Scale rectangle from design coordinates to actual screen coordinates"""
+    scaled_rect = pygame.Rect(
+        int(rect.x * scale_factor) + padding_x,
+        int(rect.y * scale_factor) + padding_y,
+        int(rect.width * scale_factor),
+        int(rect.height * scale_factor)
+    )
+    return scaled_rect
+
+# Load assets at original size
 background_img = pygame.image.load('img/Background/Map.png').convert_alpha()
 panel_img = pygame.image.load('img/Background/Panel.png').convert_alpha()
-font_ui = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 20)
+font_ui = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", int(20 * scale_factor))
 
-# Define attack icon rect (example position and size, adjust as needed)
-attack_icon_rect = pygame.Rect(350, 820, 64, 64)  # x, y, width, height
+# Define UI elements in original coordinates, they'll be scaled during rendering
+attack_icon_rect = pygame.Rect(350, 820, 64, 64)
 
-current_turn = "player"  # giliran "player" atau "enemy"
-enemy_has_attacked = False
-
-turn_switch_delay = 1500  # jeda milidetik antar giliran
-turn_switch_time = 0
-font_turn = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 26)  # Change font size from 36 to 28
-
-turn_notification_img = pygame.image.load('img/Background/TurnNotification.png').convert_alpha()
-# Scale up the turn notification image by 1.5x
-turn_notification_img = pygame.transform.scale(turn_notification_img, 
-    (int(turn_notification_img.get_width() * 5), 
-     int(turn_notification_img.get_height() * 5)))
-
-turn_notification_duration = 5000  # durasi notifikasi tampil (ms)
-turn_notification_start = 0  # waktu mulai notifikasi (ms)
-
-player_turn_counter = 0
-enemy_turn_counter = 0
-round_counter = 0  # Add this line
-
-# Add combo counter variables
-combo_counter = 0
-combo_text_duration = 1000  # 1 second
-combo_text_start = 0
-
+# Modify the draw functions to use scaling
 def draw_background():
-    screen.blit(background_img, (0, 0))
+    # Draw to game surface first
+    game_surface.blit(background_img, (0, 0))
+    # Scale and draw to main screen
+    scaled_surface = pygame.transform.scale(game_surface, (screen_width, screen_height))
+    screen.blit(scaled_surface, (padding_x, padding_y))
 
 def draw_panel():
-    screen.blit(panel_img, (0, 0))
-
-def start_turn_notification():
-    global turn_notification_start
-    turn_notification_start = pygame.time.get_ticks()
-
-def draw_turn_text():
-    now = pygame.time.get_ticks()
-    if now - turn_notification_start < turn_notification_duration:
-        notif_x = screen_width // 2
-        notif_y = (screen_height // 2) - 440
-
-        notif_rect = turn_notification_img.get_rect(center=(notif_x, notif_y))
-        screen.blit(turn_notification_img, notif_rect)
-
-        # Change text based on game state
-        if blood_reaper.is_dead:
-            text = font_turn.render("You Lose!", True, (255, 0, 0))
-        elif death_sentry.is_dead:
-            text = font_turn.render("You Win!", True, (0, 255, 0))
-        elif current_turn == "player":
-            text = font_turn.render("Your Turn!", True, (0, 255, 0))
-        else:
-            text = font_turn.render("Foe Turn!", True, (255, 0, 0))
-
-        text_rect = text.get_rect(center=(notif_x, notif_y - 10))
-        screen.blit(text, text_rect)
+    game_surface.blit(panel_img, (0, 0))
+    scaled_surface = pygame.transform.scale(game_surface, (screen_width, screen_height))
+    screen.blit(scaled_surface, (padding_x, padding_y))
 
 class DamageNumber:
     def __init__(self, x, y, amount, color, font_size=26, velocity=-2, lifetime=60):
@@ -454,7 +443,7 @@ class Entity():
 
 class BloodReaper(Entity):
     def __init__(self, x, y, scale):
-        super().__init__(x, y, max_hp=100, strength=200, potion=3, name="BloodReaper", scale=scale)
+        super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
         self.entity_type = "player"  # Set type for BloodReapers
         self.load_animations(scale)
 
@@ -1112,8 +1101,59 @@ class DeathSentry(Boss):
             ))
 
 # Create character instances - MOVED DOWN here after all class definitions
-blood_reaper = BloodReaper(501, 500, scale=4.2)
-death_sentry = DeathSentry(1300, 400, scale=8.5)
+blood_reaper = BloodReaper(int(501 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
+death_sentry = DeathSentry(int(1300 * scale_factor), int(400 * scale_factor), scale=8.5 * scale_factor)
+
+current_turn = "player"  # giliran "player" atau "enemy"
+enemy_has_attacked = False
+
+turn_switch_delay = 1500  # jeda milidetik antar giliran
+turn_switch_time = 0
+font_turn = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", 26)  # Change font size from 36 to 28
+
+turn_notification_img = pygame.image.load('img/Background/TurnNotification.png').convert_alpha()
+# Scale up the turn notification image by 1.5x
+turn_notification_img = pygame.transform.scale(turn_notification_img, 
+    (int(turn_notification_img.get_width() * 5), 
+     int(turn_notification_img.get_height() * 5)))
+
+turn_notification_duration = 5000  # durasi notifikasi tampil (ms)
+turn_notification_start = 0  # waktu mulai notifikasi (ms)
+
+player_turn_counter = 0
+enemy_turn_counter = 0
+round_counter = 0  # Add this line
+
+# Add combo counter variables
+combo_counter = 0
+combo_text_duration = 1000  # 1 second
+combo_text_start = 0
+
+def start_turn_notification():
+    global turn_notification_start
+    turn_notification_start = pygame.time.get_ticks()
+
+def draw_turn_text():
+    now = pygame.time.get_ticks()
+    if now - turn_notification_start < turn_notification_duration:
+        notif_x = screen_width // 2
+        notif_y = (screen_height // 2) - 440
+
+        notif_rect = turn_notification_img.get_rect(center=(notif_x, notif_y))
+        screen.blit(turn_notification_img, notif_rect)
+
+        # Change text based on game state
+        if blood_reaper.is_dead:
+            text = font_turn.render("You Lose!", True, (255, 0, 0))
+        elif death_sentry.is_dead:
+            text = font_turn.render("You Win!", True, (0, 255, 0))
+        elif current_turn == "player":
+            text = font_turn.render("Your Turn!", True, (0, 255, 0))
+        else:
+            text = font_turn.render("Foe Turn!", True, (255, 0, 0))
+
+        text_rect = text.get_rect(center=(notif_x, notif_y - 10))
+        screen.blit(text, text_rect)
 
 def switch_turns():
     global current_turn, enemy_has_attacked, turn_switch_time, player_turn_counter, enemy_turn_counter, round_counter
@@ -1164,10 +1204,11 @@ while run:
         character.update()
         character.draw()
 
-    blood_reaper.draw_health_bar_panel(x=350, y=790)
-    blood_reaper.draw_energy_bar_panel(x=350, y=810)
-    death_sentry.draw_health_bar_panel(x=1200, y=790)
-    death_sentry.draw_energy_bar_panel(x=1200, y=810)
+    # Update UI element positions using scale_pos() for coordinates
+    blood_reaper.draw_health_bar_panel(*scale_pos(350, 790))
+    blood_reaper.draw_energy_bar_panel(*scale_pos(350, 810))
+    death_sentry.draw_health_bar_panel(*scale_pos(1200, 790))
+    death_sentry.draw_energy_bar_panel(*scale_pos(1200, 810))
 
     draw_turn_text()
 
