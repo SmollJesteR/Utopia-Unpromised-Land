@@ -93,7 +93,7 @@ def draw_panel():
     screen.blit(scaled_surface, (padding_x, padding_y))
 
 class DamageNumber:
-    def __init__(self, x, y, amount, color, font_size=26, velocity=-2, lifetime=60):
+    def __init__(self, x, y, amount, color, font_size=26, velocity=-2, lifetime=30):
         self.font = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", font_size)
         self.x = x
         self.y = y
@@ -443,7 +443,7 @@ class Entity():
 
 class BloodReaper(Entity):
     def __init__(self, x, y, scale):
-        super().__init__(x, y, max_hp=100, strength=1100, potion=3, name="BloodReaper", scale=scale)
+        super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
         self.entity_type = "player"  # Set type for BloodReapers
         self.load_animations(scale)
 
@@ -1082,6 +1082,7 @@ class DeathSentry(Boss):
             if current_time - self.update_time > animation_cooldown:
                 if self.frame_index < len(self.animation_list[2]) - 1:
                     self.frame_index += 1
+                    self.rect.y += 5  # Move down by 2 pixels each frame during death animation
                     self.update_time = current_time
                 else:
                     self.is_dead = True
@@ -1111,14 +1112,16 @@ class DeathSentry(Boss):
                 self.attack_target.combo_count = 0
                 self.attack_target.should_combo = False
             
+            # Lebih cepat fade dengan lifetime 40 frames (dari 120)
+            # Dan velocity yang lebih cepat (-4 dari -2)
             damage_numbers.append(DamageNumber(
                 self.attack_target.rect.centerx,
                 start_y + (self.damage_number_index * 40),
                 10,
                 (255, 255, 0),
                 font_size=26,
-                velocity=-2,
-                lifetime=120
+                velocity=-2,  # Increased upward speed
+                lifetime=40   # Shorter lifetime
             ))
 
 # Create character instances - MOVED DOWN here after all class definitions
