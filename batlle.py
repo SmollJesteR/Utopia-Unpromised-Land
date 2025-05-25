@@ -443,7 +443,7 @@ class Entity():
 
 class BloodReaper(Entity):
     def __init__(self, x, y, scale):
-        super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
+        super().__init__(x, y, max_hp=100, strength=1100, potion=3, name="BloodReaper", scale=scale)
         self.entity_type = "player"  # Set type for BloodReapers
         self.load_animations(scale)
 
@@ -919,46 +919,28 @@ class DeathSentry(Boss):
         # Load animations in correct order
         self.animation_list = []  # Reset animation list
         
-        # Load idle animation (index 0)
-        temp_list = []
-        for i in range(9):
-            img = pygame.image.load(f'img/{self.name}/Idle/{i+1}.png')
-            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
-        
-        # Load attack animation (index 1)
-        temp_list = []
-        for i in range(8):
-            img = pygame.image.load(f'img/{self.name}/Attack/{i+1}.png')
-            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
-        
-        # Load death animation (index 2)
-        temp_list = []
-        for i in range(14):
-            img = pygame.image.load(f'img/{self.name}/Death/{i+1}.png')
-            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
-        
-        # Then load skill and ultimate
-        # Skill animation (index 3)
-        temp_list = []
-        for i in range(7):  # Load 7 skill frames
-            img = pygame.image.load(f'img/{self.name}/Skill/{i+1}.png').convert_alpha()
-            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
+        # Helper function untuk load dan scale image
+        def load_animation(path, frame_count):
+            temp_list = []
+            for i in range(frame_count):
+                img = pygame.image.load(f'img/{self.name}/{path}/{i+1}.png')
+                # Set posisi yang sama untuk semua animasi
+                img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+                temp_list.append(img)
+            return temp_list
 
-        # Ultimate animation (index 4)  
-        temp_list = []
-        for i in range(14):  # Load 14 ultimate frames
-            img = pygame.image.load(f'img/{self.name}/Ultimate/{i+1}.png').convert_alpha()
-            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
+        # Load semua animasi dengan posisi yang konsisten
+        self.animation_list.append(load_animation('Idle', 9))      # index 0
+        self.animation_list.append(load_animation('Attack', 8))    # index 1 
+        self.animation_list.append(load_animation('Death', 14))    # index 2
+        self.animation_list.append(load_animation('Skill', 7))     # index 3
+        self.animation_list.append(load_animation('Ultimate', 14))  # index 4
+
+        # Set posisi awal
+        self.image = self.animation_list[0][0]  # Idle frame pertama
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.original_pos = self.rect.center  # Simpan posisi original
 
     def attack(self, target):
         self.last_damage_dealt = False  # Reset at start of attack
@@ -998,6 +980,45 @@ class DeathSentry(Boss):
             # Set immunity without dealing damage
             self.immunity_hits = self.max_immunity_hits  # Reset shield hits to maximum
             blood_reaper.should_combo = False  # Reset combo potential during immunity
+            return True
+        return False
+
+    def use_ultimate(self, target):
+        if len(self.animation_list) > 4:
+            self.using_ultimate = True
+            self.ultimate_applied = False
+            self.action = 4  # Ultimate animation index
+            self.frame_index = 0
+            self.attack_target = target
+            self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
+            pygame.mixer.Sound.play(ultimateboss1_sfx)
+            
+            # Store original position and create offset for ultimate animation
+            self.original_pos = self.rect.center
+            # Move rect left by 400 pixels during ultimate to overlap UI
+            self.rect.centerx -= 1600
+            self.rect.centery -= 60  # Move up slightly for better visibility
+            
+            # Apply initial burst damage
+            if hasattr(self, "attack_target") and self.attack_target:
+                damage_done = self.attack_target.take_damage(self.initial_ultimate_damage)
+                self.last_damage_dealt = (damage_done > 0)
+                
+                if isinstance(self.attack_target, BloodReaper) and damage_done > 0:
+                    self.attack_target.combo_count = 0
+                    self.attack_target.should_combo = False
+                
+                damage_numbers.append(DamageNumber(
+                    self.attack_target.rect.centerx,
+                    self.attack_target.rect.y - 50,
+                    self.initial_ultimate_damage,
+                    (255, 0, 0)
+                ))
+            
+            # Reset damage number tracking
+            self.damage_number_index = 0
+            self.ultimate_start_time = pygame.time.get_ticks()
+            self.next_damage_number_time = self.ultimate_start_time + 1000  # Start first tick after 1 second
             return True
         return False
 
