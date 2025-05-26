@@ -1059,9 +1059,9 @@ class DeathSentry(Boss):
         
         # Add variables for icon state tracking with smooth transitions
         self.skill_icons_target_alpha = {
-            'basic': 128,
-            'skill': 128,
-            'ultimate': 128
+            'basic': 255,
+            'skill': 255,
+            'ultimate': 255
         }
         self.skill_icons_alpha = {
             'basic': 128,
@@ -1266,11 +1266,12 @@ class DeathSentry(Boss):
                     self.action = 0
                     self.using_skill = False
                     self.skill_applied = False
+                    self.active_skill = None  # Reset active skill
 
             self.image = self.animation_list[3][self.frame_index]
             return
 
-        # Handle ultimate animation with delayed initial damage
+        # Handle ultimate animation
         if self.using_ultimate:
             self.alpha = 255
             elapsed = current_time - self.ultimate_start_time
@@ -1312,10 +1313,18 @@ class DeathSentry(Boss):
                 self.damage_sequence_complete = False
                 self.damage_ticks = 0
                 self.rect.center = self.original_pos
+                self.active_skill = None  # Reset active skill
                 return
 
             self.image = self.animation_list[4][self.frame_index]
             return
+
+        # Handle basic attack end
+        if self.action == 1 and self.frame_index >= len(self.animation_list[1]) - 1:
+            self.action = 0
+            self.attacking = False
+            self.attack_applied = False
+            self.active_skill = None  # Reset active skill
 
         # Handle other animations normally
         super().update()
@@ -1359,7 +1368,17 @@ class DeathSentry(Boss):
         if self.is_dead or self.is_dying:
             return
 
-        # Use class variables for positioning
+        # Update icon opacities based on active skill
+        for skill_type in self.skill_icons_alpha:
+            target = 255 if self.active_skill == skill_type else 128
+            current = self.skill_icons_alpha[skill_type]
+            
+            if current < target:
+                self.skill_icons_alpha[skill_type] = min(current + self.alpha_transition_speed, target)
+            elif current > target:
+                self.skill_icons_alpha[skill_type] = max(current - self.alpha_transition_speed, target)
+
+        # Draw icons with updated opacities
         base_x = self.icon_base_x
         y = self.icon_base_y
         spacing = self.icon_spacing
@@ -1371,7 +1390,6 @@ class DeathSentry(Boss):
             scaled_pos = scale_pos(x, y)
             screen.blit(temp_surface, scaled_pos)
         
-        # Draw all icons with their current opacity states
         draw_icon(self.basic_attack_icon, base_x - spacing, y, 'basic')
         draw_icon(self.skill_icon, base_x, y, 'skill')
         draw_icon(self.ultimate_icon, base_x + spacing, y, 'ultimate')
