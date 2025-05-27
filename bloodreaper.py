@@ -21,7 +21,7 @@ class BloodReaper(Entity):
     def __init__(self, x, y, scale):
         self.pos_x = x  # Set position before super().__init__
         self.pos_y = y
-        super().__init__(x, y, max_hp=100, strength=200, potion=3, name="BloodReaper", scale=scale)
+        super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
         self.entity_type = "player"
         
         # Reset combo system

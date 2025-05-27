@@ -81,7 +81,8 @@ def scale_rect(rect):
     return scaled_rect
 
 # Load assets at original size (no scaling during load)
-background_img = pygame.image.load('img/Background/Map.png').convert_alpha()
+background_winter_img = pygame.image.load('img/Background/Map.png').convert_alpha()
+background_hell_img = pygame.image.load('img/Background/Hell_Map.png').convert_alpha()
 panel_img = pygame.image.load('img/Background/Panel.png').convert_alpha()
 font_ui = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", int(20 * scale_factor))  # Scale font size
 
@@ -91,7 +92,11 @@ attack_icon_rect = pygame.Rect(350, 820, 64, 64)  # Original coordinates and siz
 # Modify the draw functions to use scaling
 def draw_background():
     # Draw to game surface first at original resolution
-    game_surface.blit(background_img, (0, 0))
+    if BOSS_TYPE == 1:  # DeathSentry
+        game_surface.blit(background_winter_img, (0, 0))
+    else:  # Baphomet
+        game_surface.blit(background_hell_img, (0, 0))
+    
     # Scale and draw to main screen with proper positioning
     scaled_surface = pygame.transform.scale(game_surface, (screen_width, screen_height))
     screen.blit(scaled_surface, (padding_x, padding_y))
@@ -106,7 +111,7 @@ def draw_panel():
 blood_reaper = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
 
 # Add boss selection
-BOSS_TYPE = 0  # 1 for DeathSentry, 0 for Baphomet
+BOSS_TYPE = 1  # 1 for DeathSentry, 0 for Baphomet
 
 # Create appropriate boss based on selection
 if BOSS_TYPE == 1:
