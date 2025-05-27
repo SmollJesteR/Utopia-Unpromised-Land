@@ -3,17 +3,22 @@ import random
 from entity import Entity
 from deathsentry import DeathSentry
 from baphomet import Baphomet  # Add this import
+from cyclops import Cyclops  # Add this import
+from doomcultist import DoomCultist  # Add DoomCultist import
 from game_data import screen, damage_numbers, ComboText, DamageNumber, font_ui  # Add font_ui import
+from medusa import Medusa  # Add this import at the top with other imports
 
 # Import sound effects
 attack_sfx = pygame.mixer.Sound('Assets/SFX/BA.wav')
 deathbloodreaper_sfx = pygame.mixer.Sound('Assets/SFX/Death_BR.wav')
-deathsentryhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DS.wav')
 deathsentryshieldhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_SHIELD_DS.wav')
 basiccombo_sfx = pygame.mixer.Sound('Assets/SFX/combo2,3,.wav')
 morecombo_sfx = pygame.mixer.Sound('Assets/SFX/combo4,-.wav')
 idlebr_sfx = pygame.mixer.Sound('Assets/SFX/Idle_BR.wav')
 baphemothit_sfx = pygame.mixer.Sound('Assets/SFX/MA_B.wav')  # Add Baphomet's hit sound
+cyclopshit_sfx = pygame.mixer.Sound('Assets/SFX/MA_C.wav')  # Add Cyclops' hit sound
+cyclopsdodgehit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DODGE_C.wav')  # Add Cyclops' dodge hit sound
+deathsentryhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DS.wav')  # Add DeathSentry's hit sound
 
 pygame.mixer.init()  # Add this line
 
@@ -64,7 +69,7 @@ class BloodReaper(Entity):
 
     def attack(self, target):
         # Check if target is dead before allowing attack
-        if isinstance(target, (DeathSentry, Baphomet)) and (target.is_dead or target.is_dying):
+        if isinstance(target, (DeathSentry, Baphomet, Cyclops, DoomCultist)) and (target.is_dead or target.is_dying):  # Add DoomCultist here
             return
             
         # Check immunity and death state before allowing attack
@@ -154,10 +159,14 @@ class BloodReaper(Entity):
         total_damage = int(base_damage * combo_multiplier)
         damage_done = self.attack_target.take_damage(total_damage)
         
-        # Update this section to handle both boss types
-        if isinstance(self.attack_target, (DeathSentry, Baphomet)):
+        # Update this section to handle all boss types including Medusa
+        if isinstance(self.attack_target, (DeathSentry, Baphomet, Cyclops, DoomCultist, Medusa)):  # Add Medusa here
             if damage_done == 0:
-                pygame.mixer.Sound.play(deathsentryshieldhit_sfx)
+                if isinstance(self.attack_target, Cyclops):
+                    # Don't play shield hit sound for Cyclops dodge
+                    pass
+                else:
+                    pygame.mixer.Sound.play(deathsentryshieldhit_sfx)
                 self.combo_count = 0
                 self.should_combo = False
             else:
@@ -166,6 +175,8 @@ class BloodReaper(Entity):
                     pygame.mixer.Sound.play(deathsentryhit_sfx)
                 elif isinstance(self.attack_target, Baphomet):
                     pygame.mixer.Sound.play(baphemothit_sfx)
+                elif isinstance(self.attack_target, (Cyclops, DoomCultist, Medusa)):  # Add Medusa to use Cyclops hit sound
+                    pygame.mixer.Sound.play(cyclopshit_sfx)
                 
                 if not self.was_hit and self.combo_count > 0:  # Check combo conditions
                     next_combo = self.combo_count + 1
@@ -188,7 +199,7 @@ class BloodReaper(Entity):
         damage_numbers.append(DamageNumber(
             self.attack_target.rect.centerx - 30,
             self.attack_target.rect.y - 30,
-            "Miss!" if damage_done == 0 else total_damage,
+            "MISS!" if damage_done == 0 else total_damage,
             (255, 255, 255) if damage_done == 0 else (255, 0, 0)
         ))
         

@@ -7,6 +7,9 @@ from bloodreaper import BloodReaper
 from game_data import (screen, scale_pos, font_ui, damage_numbers, 
                       DamageNumber, DESIGN_WIDTH, scale_factor, ComboText)
 from baphomet import Baphomet
+from cyclops import Cyclops  # Import Cyclops
+from doomcultist import DoomCultist  # Add this import
+from medusa import Medusa
 
 # Initialize pygame and mixer first
 pygame.init()
@@ -83,6 +86,10 @@ def scale_rect(rect):
 # Load assets at original size (no scaling during load)
 background_winter_img = pygame.image.load('img/Background/Map.png').convert_alpha()
 background_hell_img = pygame.image.load('img/Background/Hell_Map.png').convert_alpha()
+background_mountain_img = pygame.image.load('img/Background/Mountain_Map.png').convert_alpha()
+background_castle_img = pygame.image.load('img/Background/Castle_Map.png').convert_alpha()
+background_lair_img = pygame.image.load('img/Background/Lair_Map.png').convert_alpha()
+# Scale images to fit the design resolution
 panel_img = pygame.image.load('img/Background/Panel.png').convert_alpha()
 font_ui = pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", int(20 * scale_factor))  # Scale font size
 
@@ -94,8 +101,14 @@ def draw_background():
     # Draw to game surface first at original resolution
     if BOSS_TYPE == 1:  # DeathSentry
         game_surface.blit(background_winter_img, (0, 0))
-    else:  # Baphomet
+    elif BOSS_TYPE == 2:  # Baphomet
         game_surface.blit(background_hell_img, (0, 0))
+    elif BOSS_TYPE == 3:  # Cyclops
+        game_surface.blit(background_mountain_img, (0, 0))
+    elif BOSS_TYPE == 4:
+        game_surface.blit(background_castle_img, (0, 0))
+    elif BOSS_TYPE == 5:  # Medusa
+        game_surface.blit(background_lair_img, (0, 0))  # Use the same background for Medusa        
     
     # Scale and draw to main screen with proper positioning
     scaled_surface = pygame.transform.scale(game_surface, (screen_width, screen_height))
@@ -110,16 +123,25 @@ def draw_panel():
 
 blood_reaper = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
 
-# Add boss selection
-BOSS_TYPE = 1  # 1 for DeathSentry, 0 for Baphomet
+# Update boss type selection
+BOSS_TYPE = 5  # Add Medusa as type 5
 
-# Create appropriate boss based on selection
+# Update boss creation
 if BOSS_TYPE == 1:
     current_boss = DeathSentry(int(1400 * scale_factor), int(420 * scale_factor), 
                               scale=8.5 * scale_factor, player=blood_reaper)
-else:
-    current_boss = Baphomet(int(1400 * scale_factor), int(120 * scale_factor),  # Changed Y from 400 to 300
-                           scale=7 * scale_factor, player=blood_reaper)
+elif BOSS_TYPE == 2:
+    current_boss = Baphomet(int(1400 * scale_factor), int(120 * scale_factor),
+                           scale=7 * scale_factor, player=blood_reaper)                              
+elif BOSS_TYPE == 3:
+    current_boss = Cyclops(int(1450 * scale_factor), int(420 * scale_factor),
+                          scale=9 * scale_factor, player=blood_reaper)
+elif BOSS_TYPE == 4:
+    current_boss = DoomCultist(int(1100 * scale_factor), int(250 * scale_factor),
+                              scale=9 * scale_factor, player=blood_reaper)
+elif BOSS_TYPE == 5:  # Add Medusa
+    current_boss = Medusa(int(1450 * scale_factor), int(180 * scale_factor),
+                         scale=8 * scale_factor, player=blood_reaper)
 
 current_turn = "player"  # giliran "player" atau "enemy"
 enemy_has_attacked = False

@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 pygame.mixer.init()
 
 # Import sound effects
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
 bab_sfx = pygame.mixer.Sound('Assets/SFX/BA_B.wav')  # Add Baphomet's basic attack sound
 idleb_sfx = pygame.mixer.Sound('Assets/SFX/Idle_B.wav')  # Baphomet's idle sound
 deathb_sfx = pygame.mixer.Sound('Assets/SFX/Death_B.wav')  # Baphomet's death sound

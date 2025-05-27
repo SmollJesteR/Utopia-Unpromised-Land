@@ -113,7 +113,7 @@ class Boss(Entity):
                     damage_numbers.append(DamageNumber(
                         self.attack_target.rect.centerx,
                         self.attack_target.rect.y - 50,
-                        "Miss!" if damage_done == 0 else base_damage,
+                        "MISS!" if damage_done == 0 else base_damage,
                         (255, 255, 255) if damage_done == 0 else (255, 0, 0)
                     ))
 
