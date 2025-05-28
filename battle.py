@@ -130,7 +130,7 @@ elif PLAYER_TYPE == 2:
     player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=7.2 * scale_factor)
 
 # Update boss type selection
-BOSS_TYPE = 4 # Add Medusa as type 5
+BOSS_TYPE = 1 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:

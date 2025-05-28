@@ -28,10 +28,10 @@ class AshenKnight(Entity):
     def __init__(self, x, y, scale):
         self.pos_x = x  # Set position before super().__init__
         self.pos_y = y
-        super().__init__(x, y, max_hp=120, strength=50, potion=3, name="AshenKnight", scale=scale)
+        super().__init__(x, y, max_hp=120, strength=400, potion=3, name="AshenKnight", scale=scale)
         
         # Update max energy and initial energy values
-        self.max_energy = 200  # Customize max energy here
+        self.max_energy = 1000  # Customize max energy here
         self.target_energy = self.max_energy  # Set initial target to max
         self.current_energy = self.max_energy  # Set initial current to max
         self.energy_bar_length = 350  # Same visual bar length as BloodReaper

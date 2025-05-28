@@ -260,7 +260,6 @@ class DeathSentry(Boss):
             self.attack_target = target
             self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
             pygame.mixer.Sound.play(ultimateboss1_sfx)
-            pygame.mixer.Sound.play(monster_sfx)  # Add hit sound for initial damage
             
             # Store original position and create offset for ultimate animation
             self.original_pos = self.rect.center
@@ -451,7 +450,6 @@ class DeathSentry(Boss):
 
     def show_next_damage_number(self):
         if hasattr(self, "attack_target"):
-            pygame.mixer.Sound.play(monster_sfx)
             
             # Let target handle damage reduction
             damage_done = self.attack_target.take_damage(10)
