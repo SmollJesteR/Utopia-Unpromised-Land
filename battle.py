@@ -127,10 +127,10 @@ PLAYER_TYPE = 2  # 1 for BloodReaper, 2 for AshenKnight
 if PLAYER_TYPE == 1:
     player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
 elif PLAYER_TYPE == 2:
-    player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=6.2 * scale_factor)
+    player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=7.2 * scale_factor)
 
 # Update boss type selection
-BOSS_TYPE = 2 # Add Medusa as type 5
+BOSS_TYPE = 4 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
