@@ -207,13 +207,31 @@ def switch_turns():
     
     # Handle AshenKnight's damage reduction duration at start of turn
     if isinstance(player, AshenKnight) and player.damage_reduction_active:
-        player.damage_reduction_turns -= 1
-        if player.damage_reduction_turns <= 0:
-            player.damage_reduction_active = False
+        if player.damage_reduction_turns > 0:  # Only decrement if turns remain
+            if not (isinstance(current_boss, DeathSentry) and current_boss.using_ultimate):
+                # Don't decrement shield during ultimate to maintain consistency
+                player.damage_reduction_turns -= 1
+            if player.damage_reduction_turns <= 0:
+                player.damage_reduction_active = False
+                damage_numbers.append(DamageNumber(
+                    player.rect.centerx,
+                    player.rect.y - 50,
+                    "SHIELD OFF",
+                    (255, 255, 255),
+                    font_size=20,
+                    lifetime=60
+                ))
+
+    # Handle DeathSentry's shield duration
+    if isinstance(current_boss, DeathSentry) and current_boss.immunity_hits > 0:
+        current_boss.immunity_turns += 1
+        if current_boss.immunity_turns >= 3:  # Changed from 2 to 3 - Shield breaks after 3 turns
+            current_boss.immunity_hits = 0
+            current_boss.immunity_turns = 0
             damage_numbers.append(DamageNumber(
-                player.rect.centerx,
-                player.rect.y - 50,
-                "SHIELD OFF",  # Changed from SHIELD EXPIRED!
+                current_boss.rect.centerx,
+                current_boss.rect.y - 50,
+                "SHIELD BREAK",
                 (255, 255, 255),
                 font_size=20,
                 lifetime=60
@@ -260,28 +278,31 @@ def switch_turns():
     # Reset tracking variables    
     current_boss.last_damage_dealt = False
     
-    current_turn = "player"
-    enemy_has_attacked = False
-    turn_switch_time = pygame.time.get_ticks()
-    start_turn_notification()
-    
-    player_turn_counter += 1
-    enemy_turn_counter += 1
-    round_counter += 1  # Increment round counter
-    
-    # Energy recovery every 2 rounds
-    if round_counter % 2 == 0:
-        player.target_energy = min(player.max_energy, player.target_energy + 10)
-        current_boss.target_energy = min(current_boss.max_energy, current_boss.target_energy + 10)
-    
-    # Existing turn energy regen
-    if player_turn_counter >= 6:
-        player.target_energy = min(player.max_energy, player.target_energy + 15)
-        player_turn_counter = 0
-    
-    if enemy_turn_counter >= 3:
-        current_boss.target_energy = min(current_boss.max_energy, current_boss.target_energy + 15)
-        enemy_turn_counter = 0
+    # Only switch turns if neither player nor boss is dead
+    if not player.is_dead and not current_boss.is_dead:
+        current_turn = "player"
+        enemy_has_attacked = False
+        turn_switch_time = pygame.time.get_ticks()
+        start_turn_notification()
+        
+        # Increment turn counters
+        player_turn_counter += 1
+        enemy_turn_counter += 1
+        round_counter += 1
+        
+        # Energy recovery every 2 rounds
+        if round_counter % 2 == 0:
+            player.target_energy = min(player.max_energy, player.target_energy + 10)
+            current_boss.target_energy = min(current_boss.max_energy, current_boss.target_energy + 10)
+        
+        # Regular turn energy regen
+        if player_turn_counter >= 6:
+            player.target_energy = min(player.max_energy, player.target_energy + 15)
+            player_turn_counter = 0
+        
+        if enemy_turn_counter >= 3:
+            current_boss.target_energy = min(current_boss.max_energy, current_boss.target_energy + 15)
+            enemy_turn_counter = 0
 
 # Main game loop
 run = True

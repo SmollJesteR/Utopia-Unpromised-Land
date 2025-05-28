@@ -28,10 +28,10 @@ class AshenKnight(Entity):
     def __init__(self, x, y, scale):
         self.pos_x = x  # Set position before super().__init__
         self.pos_y = y
-        super().__init__(x, y, max_hp=120, strength=400, potion=3, name="AshenKnight", scale=scale)
+        super().__init__(x, y, max_hp=120, strength=60, potion=3, name="AshenKnight", scale=scale)
         
         # Update max energy and initial energy values
-        self.max_energy = 1000  # Customize max energy here
+        self.max_energy = 300  # Customize max energy here
         self.target_energy = self.max_energy  # Set initial target to max
         self.current_energy = self.max_energy  # Set initial current to max
         self.energy_bar_length = 350  # Same visual bar length as BloodReaper
@@ -372,16 +372,15 @@ class AshenKnight(Entity):
         return 0
 
     def use_skill(self):
-        if not self.using_skill and self.current_energy >= self.skill_energy_cost:
+        if not self.using_skill and not self.is_dead and self.current_energy >= self.skill_energy_cost:
             self.using_skill = True
             self.skill_applied = False
-            self.action = 3  # Use skill animation
+            self.action = 3  # Skill animation index
             self.frame_index = 0
-            self.damage_reduction_active = True
-            self.damage_reduction_turns = 2
             self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
+            self.damage_reduction_active = True
+            self.damage_reduction_turns = 2  # This ensures shield lasts 2 turns
             
-            # Only show shield activation message once
             damage_numbers.append(DamageNumber(
                 self.rect.centerx,
                 self.rect.y - 50,
@@ -391,6 +390,8 @@ class AshenKnight(Entity):
                 lifetime=45  # Reduced lifetime
             ))
             pygame.mixer.Sound.play(ashenknightskill_sfx)  # Temporarily use attack sound
+            return True
+        return False
 
     def apply_attack_damage(self):
         # Only apply combo multiplier if player hasn't been hit

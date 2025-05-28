@@ -33,7 +33,7 @@ class DeathSentry(Boss):
         self.is_dead = False
         self.attacking = False  # Add this line
         self.attack_applied = False  # Add this line
-        self.immunity_turns = 0  # Change this to immunity_hits
+        self.immunity_turns = 0  # Track how many turns the shield has been active
         self.immunity_hits = 0  # Number of hits the shield can take
         self.max_immunity_hits = 2  # Maximum number of hits shield can take
         self.using_skill = False
@@ -244,10 +244,12 @@ class DeathSentry(Boss):
             self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
             pygame.mixer.Sound.play(skillboss1_sfx)
             
-            # Set immunity without dealing damage
-            self.immunity_hits = self.max_immunity_hits  # Reset shield hits to maximum
-            if self.player:  # Check if player reference exists
-                self.player.should_combo = False  # Reset combo potential during immunity
+            # Reset shield stats when activating
+            self.immunity_hits = self.max_immunity_hits
+            self.immunity_turns = 0  # Reset turn counter when shield is activated
+            
+            if self.player:
+                self.player.should_combo = False
             return True
         return False
 
@@ -266,6 +268,14 @@ class DeathSentry(Boss):
             self.rect.centerx -= 1050  # Changed from 1000 to 1200 to move more left
             self.rect.centery -= 30
             
+            # Store shield state at start of ultimate
+            if hasattr(self.attack_target, 'damage_reduction_active'):
+                self.shield_state_at_ultimate_start = self.attack_target.damage_reduction_active
+                self.shield_turns_at_ultimate_start = self.attack_target.damage_reduction_turns
+            else:
+                self.shield_state_at_ultimate_start = False
+                self.shield_turns_at_ultimate_start = 0
+                
             # Apply initial burst damage and create damage number
             if hasattr(self, "attack_target") and self.attack_target:
                 damage_done = self.attack_target.take_damage(self.initial_ultimate_damage)
@@ -450,10 +460,19 @@ class DeathSentry(Boss):
 
     def show_next_damage_number(self):
         if hasattr(self, "attack_target"):
+            # Use shield state from start of ultimate
+            if hasattr(self, 'shield_state_at_ultimate_start') and self.shield_state_at_ultimate_start:
+                self.attack_target.damage_reduction_active = True
+                self.attack_target.damage_reduction_turns = self.shield_turns_at_ultimate_start
             
-            # Let target handle damage reduction
+            # Apply damage
             damage_done = self.attack_target.take_damage(10)
             self.last_damage_dealt = (damage_done > 0)
+            
+            # Restore actual current shield state
+            if hasattr(self.attack_target, 'damage_reduction_active'):
+                self.attack_target.damage_reduction_active = self.shield_state_at_ultimate_start
+                self.attack_target.damage_reduction_turns = self.shield_turns_at_ultimate_start
             
             if damage_done > 0 and hasattr(self.attack_target, 'entity_type'):
                 if self.attack_target.entity_type == "player":
