@@ -104,9 +104,9 @@ def draw_background():
     elif BOSS_TYPE == 2:  # Baphomet
         game_surface.blit(background_hell_img, (0, 0))
     elif BOSS_TYPE == 3:  # Cyclops
-        game_surface.blit(background_mountain_img, (0, 0))
-    elif BOSS_TYPE == 4:
         game_surface.blit(background_castle_img, (0, 0))
+    elif BOSS_TYPE == 4:
+        game_surface.blit(background_mountain_img, (0, 0))
     elif BOSS_TYPE == 5:  # Medusa
         game_surface.blit(background_lair_img, (0, 0))  # Use the same background for Medusa        
     
@@ -130,7 +130,7 @@ elif PLAYER_TYPE == 2:
     player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=7.2 * scale_factor)
 
 # Update boss type selection
-BOSS_TYPE = 3 # Add Medusa as type 5
+BOSS_TYPE = 1 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
@@ -138,13 +138,13 @@ if BOSS_TYPE == 1:
                               scale=8.5 * scale_factor, player=player)
 elif BOSS_TYPE == 2:
     current_boss = Baphomet(int(1400 * scale_factor), int(120 * scale_factor),
-                           scale=7 * scale_factor, player=player)                              
+                           scale=7 * scale_factor, player=player)
 elif BOSS_TYPE == 3:
+    current_boss = DoomCultist(int(1100 * scale_factor), int(250 * scale_factor),
+                              scale=9 * scale_factor, player=player)                                                         
+elif BOSS_TYPE == 4:
     current_boss = Cyclops(int(1450 * scale_factor), int(420 * scale_factor),
                           scale=9 * scale_factor, player=player)
-elif BOSS_TYPE == 4:
-    current_boss = DoomCultist(int(1100 * scale_factor), int(250 * scale_factor),
-                              scale=9 * scale_factor, player=player)
 elif BOSS_TYPE == 5:  # Add Medusa
     current_boss = Medusa(int(1450 * scale_factor), int(180 * scale_factor),
                          scale=8 * scale_factor, player=player)

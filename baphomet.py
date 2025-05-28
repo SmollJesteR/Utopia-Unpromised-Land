@@ -19,7 +19,7 @@ class Baphomet(Boss):
         # Set position before super().__init__
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=1500, strength=50, potion=3, name="Baphomet", scale=scale)
+        super().__init__(x, y, max_hp=1000, strength=50, potion=3, name="Baphomet", scale=scale)
         
         # Add energy system attributes
         self.max_energy = 500  # Same as DeathSentry's system
@@ -209,12 +209,12 @@ class Baphomet(Boss):
                         damage_dealt = self.attack_target.take_damage(base_damage)
                         self.last_damage_dealt = (damage_dealt > 0)
                         
-                        # Show actual damage dealt
+                        # Show actual damage dealt with proper colors
                         damage_numbers.append(DamageNumber(
                             self.attack_target.rect.centerx,
                             self.attack_target.rect.y - 50,
                             damage_dealt if damage_dealt > 0 else "Miss!",
-                            (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
+                            (255, 255, 255) if damage_dealt == 1 else (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
                             font_size=20,
                             lifetime=30
                         ))
