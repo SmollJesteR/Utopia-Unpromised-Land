@@ -10,7 +10,7 @@ BG = pygame.image.load("Assets/Background.png")
 BG = pygame.transform.scale(BG, (1920, 1080))
 
 def get_font(size):
-    return pygame.font.Font("Assets/font.ttf", size)
+    return pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", size)
 
 def character_story(selected_character):
     running = True

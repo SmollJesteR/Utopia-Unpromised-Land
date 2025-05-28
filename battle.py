@@ -130,7 +130,7 @@ elif PLAYER_TYPE == 2:
     player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=7.2 * scale_factor)
 
 # Update boss type selection
-BOSS_TYPE = 1 # Add Medusa as type 5
+BOSS_TYPE = 3 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
@@ -207,17 +207,17 @@ def switch_turns():
     
     # Handle AshenKnight's damage reduction duration at start of turn
     if isinstance(player, AshenKnight) and player.damage_reduction_active:
-        if player.damage_reduction_turns > 0:  # Only decrement if turns remain
-            if not (isinstance(current_boss, DeathSentry) and current_boss.using_ultimate):
-                # Don't decrement shield during ultimate to maintain consistency
-                player.damage_reduction_turns -= 1
+        # Decrement shield turns only after enemy's turn completes
+        if enemy_has_attacked and player.damage_reduction_turns > 0:
+            player.damage_reduction_turns -= 1
+            print(f"Shield turns remaining: {player.damage_reduction_turns}")  # Debug log
             if player.damage_reduction_turns <= 0:
                 player.damage_reduction_active = False
                 damage_numbers.append(DamageNumber(
-                    player.rect.centerx,
-                    player.rect.y - 50,
-                    "SHIELD OFF",
-                    (255, 255, 255),
+                    player.rect.x + 50,
+                    player.rect.y,
+                    "SHIELD BREAK!",
+                    (255, 0, 0),
                     font_size=20,
                     lifetime=60
                 ))
@@ -229,10 +229,11 @@ def switch_turns():
             current_boss.immunity_hits = 0
             current_boss.immunity_turns = 0
             damage_numbers.append(DamageNumber(
-                current_boss.rect.centerx,
-                current_boss.rect.y - 50,
-                "SHIELD BREAK",
-                (255, 255, 255),
+                current_boss.rect.x + 50,
+                current_boss.rect.y,
+                "SHIELD BREAK!",
+                
+                (255, 0, 0),
                 font_size=20,
                 lifetime=60
             ))

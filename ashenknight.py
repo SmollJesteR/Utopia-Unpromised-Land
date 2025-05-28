@@ -46,6 +46,7 @@ class AshenKnight(Entity):
         self.should_combo = False
         self.attacking = False
         self.attack_applied = False
+        self.attack_target = None  # Add this line to store reference to attacker/target
 
         # Sound setup
         self.idle_sound = idleak_sfx
@@ -98,6 +99,9 @@ class AshenKnight(Entity):
             img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
             temp_list.append(img)
         self.animation_list.append(temp_list)  # index 3 for skill animation
+
+        # Add this to track if ultimate was blocked
+        self.blocked_ultimate = False
 
     def load_animations(self, scale):
         self.animation_list = []
@@ -333,39 +337,51 @@ class AshenKnight(Entity):
             self.target_energy = max(0, self.target_energy - 20)
             pygame.mixer.Sound.play(attack_sfx)
 
-    def take_damage(self, amount):
+    def take_damage(self, amount, attacker=None):  # Add attacker parameter
         if not self.is_dead:
             self.is_hit = True
             self.hit_time = pygame.time.get_ticks()
             self.alpha = 128
             
+            # Store attacker reference
+            self.attack_target = attacker
+
+            # Check if damage is from DeathSentry ultimate
+            if (self.attack_target and hasattr(self.attack_target, 'using_ultimate') and 
+                self.attack_target.using_ultimate and 
+                isinstance(self.attack_target, DeathSentry)):
+                if self.damage_reduction_active:
+                    self.blocked_ultimate = True
+                    actual_damage = 1
+                    pygame.mixer.Sound.play(ashenknightshieldhit_sfx)
+                    damage_numbers.append(DamageNumber(
+                        self.rect.centerx,
+                        self.rect.y,
+                        f"{actual_damage}",
+                        (255, 255, 255),
+                        font_size=20,
+                        lifetime=45
+                    ))
+                    return actual_damage
+
             if self.damage_reduction_active:
                 # Play shield hit sound when damage reduced
                 pygame.mixer.Sound.play(ashenknightshieldhit_sfx)
+                actual_damage = 1
             else:
                 # Play regular hit sound when not shielded
                 pygame.mixer.Sound.play(ashenknighthit_sfx)
+                actual_damage = amount
             
-            actual_damage = 1 if self.damage_reduction_active else amount
-            
-            if self.damage_reduction_active:
-                damage_numbers.append(DamageNumber(
-                    self.rect.centerx,
-                    self.rect.y - 70,
-                    f"DMG REDUCED: {actual_damage}",
-                    (0, 255, 255),
-                    font_size=16,
-                    lifetime=45
-                ))
-            else:
-                damage_numbers.append(DamageNumber(
-                    self.rect.centerx,
-                    self.rect.y - 50,
-                    str(amount),
-                    (255, 0, 0),
-                    font_size=20,
-                    lifetime=30
-                ))
+            # Show damage numbers only once
+            damage_numbers.append(DamageNumber(
+                self.rect.centerx,
+                self.rect.y - 50,
+                str(actual_damage),
+                (255, 255, 255) if self.damage_reduction_active else (255, 0, 0),
+                font_size=20,
+                lifetime=30
+            ))
             
             self.target_health -= actual_damage
             return actual_damage
@@ -379,17 +395,17 @@ class AshenKnight(Entity):
             self.frame_index = 0
             self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
             self.damage_reduction_active = True
-            self.damage_reduction_turns = 2  # This ensures shield lasts 2 turns
+            self.damage_reduction_turns = 2  # Set duration to 2 turns
             
             damage_numbers.append(DamageNumber(
-                self.rect.centerx,
-                self.rect.y - 50,
-                "SHIELD ACTIVATED!",  # Changed text
+                self.rect.x + 10,
+                self.rect.y,
+                "SHIELD ACTIVATED!",
                 (0, 255, 255),
                 font_size=20,
-                lifetime=45  # Reduced lifetime
+                lifetime=45
             ))
-            pygame.mixer.Sound.play(ashenknightskill_sfx)  # Temporarily use attack sound
+            pygame.mixer.Sound.play(ashenknightskill_sfx)
             return True
         return False
 
@@ -440,8 +456,8 @@ class AshenKnight(Entity):
 
         # Show damage number
         damage_numbers.append(DamageNumber(
-            self.attack_target.rect.centerx - 30,
-            self.attack_target.rect.y - 30,
+            self.attack_target.rect.centerx - 60,
+            self.attack_target.rect.y - 10,
             "MISS!" if damage_done == 0 else total_damage,
             (255, 255, 255) if damage_done == 0 else (255, 0, 0)
         ))

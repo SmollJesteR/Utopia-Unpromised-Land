@@ -85,6 +85,7 @@ class Medusa(Boss):
         # Load animations
         self.animation_list.append(load_animation('Idle', 8))    # index 0
         self.animation_list.append(load_animation('Attack', 8))  # index 1
+        self.animation_list.append(load_animation('Death', 3))   # index 2 - Add death animation
 
         # Set initial image
         self.image = self.animation_list[0][0]
@@ -107,7 +108,7 @@ class Medusa(Boss):
                         self.original_player_strength = self.player.strength
                     self.player.strength = int(self.original_player_strength * 0.5)  # Use original strength for calculation
                     damage_numbers.append(DamageNumber(
-                        self.player.rect.centerx,
+                        self.player.rect.x + 80,
                         self.player.rect.y - 50,
                         "CURSED!",
                         (128, 0, 128),  # Purple color for curse
@@ -119,7 +120,7 @@ class Medusa(Boss):
                     self.player.strength = self.original_player_strength
                     self.original_player_strength = None  # Clear stored value
                     damage_numbers.append(DamageNumber(
-                        self.player.rect.centerx,
+                        self.player.rect.x + 30,
                         self.player.rect.y - 50,
                         "CURSE LIFTED!",
                         (0, 255, 0),  # Green color for curse lift
@@ -181,28 +182,29 @@ class Medusa(Boss):
                 self.alpha = 255  # Restore to full opacity
                 self.is_hit = False
 
-        # Handle death check
+        # Handle death check and animation
         if self.target_health <= 0 and not self.is_dying and not self.is_dead:
             self.is_dying = True
-            self.action = 0  # Use idle animation for death
+            self.action = 2  # Switch to death animation
             self.frame_index = 0
-            self.death_start_time = current_time
             if self.idle_sound_playing and self.idle_sound_channel:
                 self.idle_sound_channel.stop()
                 self.idle_sound_playing = False
             pygame.mixer.Sound.play(deathm_sfx)
             return
 
-        # Handle death animation with fade out
+        # Handle death animation
         if self.is_dying or self.is_dead:
-            if self.is_dying:
-                fade_progress = (current_time - self.death_start_time) / 2000
-                self.alpha = max(0, int(255 * (1 - fade_progress)))
+            if self.is_dying and current_time - self.update_time > animation_cooldown:
+                self.frame_index += 1
+                self.update_time = current_time
                 
-                if fade_progress >= 1:
+                if self.frame_index >= len(self.animation_list[2]):
+                    self.frame_index = len(self.animation_list[2]) - 1  # Stay on last frame
                     self.is_dying = False
                     self.is_dead = True
-                    self.alpha = 0
+                
+                self.image = self.animation_list[2][self.frame_index]
             return
 
         # Handle animations
@@ -228,7 +230,7 @@ class Medusa(Boss):
                             
                             # Show actual damage dealt in notification
                             damage_numbers.append(DamageNumber(
-                                self.attack_target.rect.centerx,
+                                self.attack_target.rect.x + 125,
                                 self.attack_target.rect.y - 50,
                                 damage_dealt if damage_dealt > 0 else "Miss!",
                                 (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
@@ -266,7 +268,7 @@ class Medusa(Boss):
                 self.player.strength = self.player.original_strength
                 delattr(self.player, 'original_strength')
                 damage_numbers.append(DamageNumber(
-                    self.player.rect.centerx,
+                    self.player.rect.x + 70,
                     self.player.rect.y - 50,
                     "CURSE LIFTED!",
                     (0, 255, 0),  # Green color for curse lift

@@ -404,6 +404,23 @@ class DeathSentry(Boss):
 
             # End ultimate after duration
             if elapsed >= self.ultimate_duration:
+                # Check if AshenKnight blocked ultimate and break shield
+                if (hasattr(self.attack_target, 'blocked_ultimate') and 
+                    self.attack_target.blocked_ultimate and
+                    self.attack_target.damage_reduction_active):
+                    self.attack_target.damage_reduction_active = False
+                    self.attack_target.damage_reduction_turns = 0
+                    self.attack_target.blocked_ultimate = False
+                    damage_numbers.append(DamageNumber(
+                        self.attack_target.rect.x + 50,
+                        self.attack_target.rect.y,
+                        "SHIELD BREAK!",
+                        (255, 0, 0),
+                        font_size=20,
+                        lifetime=45
+                    ))
+
+                # Reset ultimate state
                 self.action = 0
                 self.using_ultimate = False
                 self.ultimate_applied = True
@@ -421,9 +438,10 @@ class DeathSentry(Boss):
         if self.action == 1:
             if not self.attack_applied and self.frame_index == 4:
                 if hasattr(self, "attack_target"):
-                    # Apply damage and get actual dealt amount
+                    # Calculate damage amount first
                     damage_amount = self.strength
-                    damage_dealt = self.attack_target.take_damage(damage_amount)
+                    # Pass self as attacker
+                    damage_dealt = self.attack_target.take_damage(damage_amount, attacker=self)
                     self.last_damage_dealt = (damage_dealt > 0)
                     
                     # Create single damage notification
@@ -460,13 +478,8 @@ class DeathSentry(Boss):
 
     def show_next_damage_number(self):
         if hasattr(self, "attack_target"):
-            # Use shield state from start of ultimate
-            if hasattr(self, 'shield_state_at_ultimate_start') and self.shield_state_at_ultimate_start:
-                self.attack_target.damage_reduction_active = True
-                self.attack_target.damage_reduction_turns = self.shield_turns_at_ultimate_start
-            
-            # Apply damage
-            damage_done = self.attack_target.take_damage(10)
+            # Pass self as attacker 
+            damage_done = self.attack_target.take_damage(10, attacker=self)
             self.last_damage_dealt = (damage_done > 0)
             
             # Restore actual current shield state

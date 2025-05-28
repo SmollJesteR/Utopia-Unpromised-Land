@@ -77,6 +77,7 @@ class Cyclops(Boss):
         # Load animations
         self.animation_list.append(load_animation('Idle', 8))    # index 0
         self.animation_list.append(load_animation('Attack', 8))  # index 1
+        self.animation_list.append(load_animation('Death', 3))   # index 2 - Add death animation
 
         # Set initial image
         self.image = self.animation_list[0][0]
@@ -153,31 +154,30 @@ class Cyclops(Boss):
                 self.alpha = 255
                 self.is_hit = False
 
-        # Death check
+        # Death check and animation
         if self.target_health <= 0 and not self.is_dying and not self.is_dead:
             self.is_dying = True
-            self.action = 0  # Use idle animation for death
+            self.action = 2  # Switch to death animation
             self.frame_index = 0
-            self.death_start_time = current_time
-            # Stop idle sound when dying starts
             if self.idle_sound_playing and self.idle_sound_channel:
                 self.idle_sound_channel.stop()
                 self.idle_sound_playing = False
-            pygame.mixer.Sound.play(deathc_sfx)  # Use Baphomet's death sound
+            pygame.mixer.Sound.play(deathc_sfx)
             return
 
-        # Handle death animation with fade out
+        # Handle death animation
         if self.is_dying or self.is_dead:
-            if self.is_dying:
-                # Calculate fade over 2 seconds (2000ms)
-                fade_progress = (current_time - self.death_start_time) / 2000
-                self.alpha = max(0, int(255 * (1 - fade_progress)))
+            if self.is_dying and current_time - self.update_time > animation_cooldown:
+                self.frame_index += 1
+                self.update_time = current_time
                 
-                if fade_progress >= 1:
+                if self.frame_index >= len(self.animation_list[2]):
+                    self.frame_index = len(self.animation_list[2]) - 1  # Stay on last frame
                     self.is_dying = False
                     self.is_dead = True
-                    self.alpha = 0
-            return
+                
+                self.image = self.animation_list[2][self.frame_index]
+            return  # Important: return here to prevent other animations from playing
 
         # Handle idle sound
         if self.action == 0 and not self.is_dead and not self.is_dying and not self.attacking and not self.is_hit:
@@ -214,12 +214,13 @@ class Cyclops(Boss):
                             damage_dealt = self.attack_target.take_damage(damage_amount)
                             self.last_damage_dealt = (damage_dealt > 0)
                             
-                            # Show actual damage dealt
+                            # Show damage numbers with proper colors
                             damage_numbers.append(DamageNumber(
                                 self.attack_target.rect.centerx,
                                 self.attack_target.rect.y - 50,
                                 damage_dealt if damage_dealt > 0 else "Miss!",
-                                (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
+                                # White color when damage is 1 (shielded), Red for normal damage
+                                (255, 255, 255) if damage_dealt == 1 else (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
                                 font_size=20,
                                 lifetime=30
                             ))

@@ -89,7 +89,11 @@ class BloodReaper(Entity):
 
     def attack(self, target):
         # Check if target is dead before allowing attack
-        if isinstance(target, (DeathSentry, Baphomet, Cyclops, DoomCultist)) and (target.is_dead or target.is_dying):  # Add DoomCultist here
+        if isinstance(target, (DeathSentry, Baphomet, Cyclops, DoomCultist)) and (target.is_dead or target.is_dying):
+            return
+            
+        # Add check for DoomCultist ultimate animation
+        if isinstance(target, DoomCultist) and (target.using_ultimate or target.using_skill):
             return
             
         # Check immunity and death state before allowing attack
