@@ -96,7 +96,7 @@ class Baphomet(Boss):
         return multiplier
 
     def attack(self, target):
-        self.last_damage_dealt = False  # Reset damage flag
+        self.last_damage_dealt = False
         if not self.attacking and not self.is_dying and not self.is_dead:
             if self.current_energy >= self.basic_attack_cost:
                 # Stop idle sound when starting attack
@@ -110,7 +110,6 @@ class Baphomet(Boss):
                 self.action = 1
                 self.attack_target = target
                 self.target_energy = max(0, self.target_energy - self.basic_attack_cost)
-                pygame.mixer.Sound.play(monster_sfx)
                 pygame.mixer.Sound.play(bab_sfx)
                 return True
         return False
@@ -204,28 +203,29 @@ class Baphomet(Boss):
                 # Apply damage near middle of attack animation
                 if not self.attack_applied and self.frame_index == 7:
                     if hasattr(self, "attack_target"):
-                        # Calculate and apply damage
+                        # Calculate base damage with rage multiplier
                         base_damage = int(self.strength * self.calculate_rage_multiplier())
-                        damage_done = self.attack_target.take_damage(base_damage)
-                        self.last_damage_dealt = (damage_done > 0)
-                        # Create damage number
+                        # Apply damage and get actual damage dealt back
+                        damage_dealt = self.attack_target.take_damage(base_damage)
+                        self.last_damage_dealt = (damage_dealt > 0)
+                        
+                        # Show actual damage dealt
                         damage_numbers.append(DamageNumber(
                             self.attack_target.rect.centerx,
                             self.attack_target.rect.y - 50,
-                            base_damage if damage_done > 0 else "Miss!",
-                            (255, 0, 0) if damage_done > 0 else (255, 255, 255),
+                            damage_dealt if damage_dealt > 0 else "Miss!",
+                            (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
                             font_size=20,
-                            velocity=-2,
-                            lifetime=30  # Changed to match Baphomet's 0.5 second duration
+                            lifetime=30
                         ))
-                        
+
                         # Print debug message after damage number created
-                        if damage_done > 0:
+                        if damage_dealt > 0:
                             print(f"Enemy dealt {base_damage} damage!")
                         
                         # Update player state
                         if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
-                            if damage_done > 0:
+                            if damage_dealt > 0:
                                 self.attack_target.was_hit = True
                                 self.attack_target.combo_count = 0
                                 self.attack_target.should_combo = False

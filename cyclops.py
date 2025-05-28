@@ -8,12 +8,11 @@ if TYPE_CHECKING:
 
 pygame.mixer.init()
 
-# Use Baphomet's sound effects temporarily
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
-bac_sfx = pygame.mixer.Sound('Assets/SFX/BA_C.wav')
+# Sound effects - use Cyclops-specific sounds
+bac_sfx = pygame.mixer.Sound('Assets/SFX/BA_C.wav')  # Basic attack sound
 idlec_sfx = pygame.mixer.Sound('Assets/SFX/Idle_C.wav')
 deathc_sfx = pygame.mixer.Sound('Assets/SFX/Death_C.wav')
-cyclopsdodgehit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DODGE_C.wav')  # Add Cyclops' dodge hit sound
+cyclopsdodgehit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DODGE_C.wav')
 
 class Cyclops(Boss):
     def __init__(self, x, y, scale, player=None):
@@ -127,7 +126,6 @@ class Cyclops(Boss):
         return damage_dealt
 
     def attack(self, target):
-        self.last_damage_dealt = False
         if not self.attacking and not self.is_dying and not self.is_dead:
             if self.current_energy >= self.basic_attack_cost:
                 # Stop idle sound when attacking
@@ -141,8 +139,7 @@ class Cyclops(Boss):
                 self.action = 1
                 self.attack_target = target
                 self.target_energy = max(0, self.target_energy - self.basic_attack_cost)
-                pygame.mixer.Sound.play(monster_sfx)
-                pygame.mixer.Sound.play(bac_sfx)
+                pygame.mixer.Sound.play(bac_sfx)  # Only play Cyclops attack sound
                 return True
         return False
 
@@ -212,25 +209,26 @@ class Cyclops(Boss):
                     # Apply damage at middle frame
                     if not self.attack_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
-                            damage_done = self.attack_target.take_damage(self.strength)
-                            self.last_damage_dealt = (damage_done > 0)
+                            # Apply damage and get actual damage dealt back
+                            damage_amount = self.strength
+                            damage_dealt = self.attack_target.take_damage(damage_amount)
+                            self.last_damage_dealt = (damage_dealt > 0)
                             
-                            # Create damage number
+                            # Show actual damage dealt
                             damage_numbers.append(DamageNumber(
                                 self.attack_target.rect.centerx,
                                 self.attack_target.rect.y - 50,
-                                self.strength if damage_done > 0 else "Miss!",
-                                (255, 0, 0) if damage_done > 0 else (255, 255, 255),
+                                damage_dealt if damage_dealt > 0 else "Miss!",
+                                (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
                                 font_size=20,
-                                velocity=-2,
                                 lifetime=30
                             ))
                             
-                            if damage_done > 0:
+                            if damage_dealt > 0:
                                 print(f"Enemy dealt {self.strength} damage!")
                                 
                             if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
-                                if damage_done > 0:
+                                if damage_dealt > 0:
                                     self.attack_target.was_hit = True
                                     self.attack_target.combo_count = 0
                                     self.attack_target.should_combo = False

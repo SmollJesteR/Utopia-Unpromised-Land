@@ -5,11 +5,12 @@ from deathsentry import DeathSentry
 from baphomet import Baphomet  # Add this import
 from cyclops import Cyclops  # Add this import
 from doomcultist import DoomCultist  # Add DoomCultist import
-from game_data import screen, damage_numbers, ComboText, DamageNumber, font_ui  # Add font_ui import
+from game_data import screen, damage_numbers, ComboText, DamageNumber, font_ui, scale_pos  # Add scale_pos import here
 from medusa import Medusa  # Add this import at the top with other imports
 
 # Import sound effects
 attack_sfx = pygame.mixer.Sound('Assets/SFX/BA.wav')
+bloodreaperhit_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')  # Add hit sound here
 deathbloodreaper_sfx = pygame.mixer.Sound('Assets/SFX/Death_BR.wav')
 deathsentryshieldhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_SHIELD_DS.wav')
 basiccombo_sfx = pygame.mixer.Sound('Assets/SFX/combo2,3,.wav')
@@ -29,6 +30,14 @@ class BloodReaper(Entity):
         super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
         self.entity_type = "player"
         
+        # Update max energy and related attributes
+        self.max_energy = 100  # Customize max energy here
+        self.target_energy = self.max_energy  # Set initial target to max
+        self.current_energy = self.max_energy  # Set initial current to max
+        self.energy_bar_length = 350  # Same visual bar length as others
+        self.energy_ratio = self.max_energy / self.energy_bar_length  # Calculate ratio
+        self.energy_change_speed = 1  # Add energy change speed
+
         # Reset combo system
         self.combo_count = 0
         self.was_hit = True
@@ -44,6 +53,17 @@ class BloodReaper(Entity):
         self.death_sound = pygame.mixer.Sound('Assets/SFX/Death_BR.wav')
         self.update_time = pygame.time.get_ticks()
         
+        # Add basic attack icon with larger scale
+        ICON_SCALE = 0.1  # Changed from 0.1 to 0.25 for larger icon
+        self.icon_base_x = 450  # Position for player's icon
+        self.icon_base_y = 870  # Same Y as boss icons
+        self.icon_spacing = 120
+        self.basic_attack_icon = pygame.image.load('img/BloodReaper/Skill_icon/BasicAttack_BR.png').convert_alpha()
+        self.basic_attack_icon = pygame.transform.scale(self.basic_attack_icon, 
+            (int(self.basic_attack_icon.get_width() * ICON_SCALE), 
+             int(self.basic_attack_icon.get_height() * ICON_SCALE)))
+        self.skill_icons_alpha = {'basic': 128}
+
         self.load_animations(scale)  # Call load_animations after all attributes are set
 
     def load_animations(self, scale):
@@ -223,10 +243,12 @@ class BloodReaper(Entity):
         self.attack_applied = True
 
     def take_damage(self, amount):
-        # Set hit state and 50% opacity when taking damage
+        # Play BloodReaper hit sound first before any other operations
+        pygame.mixer.Sound.play(bloodreaperhit_sfx)  # Moved to top
+        
         self.is_hit = True
         self.hit_time = pygame.time.get_ticks()
-        self.alpha = 128  # 50% opacity when hit
+        self.alpha = 128
         
         self.target_health -= amount
         return amount
@@ -323,3 +345,20 @@ class BloodReaper(Entity):
             if (self.action < len(self.animation_list) and 
                 self.frame_index < len(self.animation_list[self.action])):
                 self.image = self.animation_list[self.action][self.frame_index]
+
+    def draw_skill_icons(self):
+        if self.is_dead or self.is_dying:
+            return
+
+        target_alpha = 255 if self.attacking else 128
+        current = self.skill_icons_alpha['basic']
+        
+        if current < target_alpha:
+            self.skill_icons_alpha['basic'] = min(current + 15, target_alpha)
+        elif current > target_alpha:
+            self.skill_icons_alpha['basic'] = max(current - 15, target_alpha)
+
+        temp_surface = self.basic_attack_icon.copy()
+        temp_surface.set_alpha(self.skill_icons_alpha['basic'])
+        scaled_pos = scale_pos(self.icon_base_x, self.icon_base_y)
+        screen.blit(temp_surface, scaled_pos)

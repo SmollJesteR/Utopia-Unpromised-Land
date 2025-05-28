@@ -10,6 +10,7 @@ from baphomet import Baphomet
 from cyclops import Cyclops  # Import Cyclops
 from doomcultist import DoomCultist  # Add this import
 from medusa import Medusa
+from ashenknight import AshenKnight  # Add this import
 
 # Initialize pygame and mixer first
 pygame.init()
@@ -30,7 +31,6 @@ def play_random_bgm():
 play_random_bgm() 
 
 attack_sfx = pygame.mixer.Sound('Assets/SFX/BA.wav')
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
 boss1_sfx = pygame.mixer.Sound('Assets/SFX/BA_DS.wav')
 deathboss1_sfx = pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 skillboss1_sfx = pygame.mixer.Sound('Assets/SFX/Skill_DS.wav')
@@ -121,27 +121,33 @@ def draw_panel():
     scaled_surface = pygame.transform.scale(game_surface, (screen_width, screen_height))
     screen.blit(scaled_surface, (padding_x, padding_y))
 
-blood_reaper = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
+# Change player character selection (add this near BloodReaper initialization)
+PLAYER_TYPE = 2  # 1 for BloodReaper, 2 for AshenKnight
+
+if PLAYER_TYPE == 1:
+    player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
+elif PLAYER_TYPE == 2:
+    player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=6.2 * scale_factor)
 
 # Update boss type selection
-BOSS_TYPE = 5  # Add Medusa as type 5
+BOSS_TYPE = 2 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
     current_boss = DeathSentry(int(1400 * scale_factor), int(420 * scale_factor), 
-                              scale=8.5 * scale_factor, player=blood_reaper)
+                              scale=8.5 * scale_factor, player=player)
 elif BOSS_TYPE == 2:
     current_boss = Baphomet(int(1400 * scale_factor), int(120 * scale_factor),
-                           scale=7 * scale_factor, player=blood_reaper)                              
+                           scale=7 * scale_factor, player=player)                              
 elif BOSS_TYPE == 3:
     current_boss = Cyclops(int(1450 * scale_factor), int(420 * scale_factor),
-                          scale=9 * scale_factor, player=blood_reaper)
+                          scale=9 * scale_factor, player=player)
 elif BOSS_TYPE == 4:
     current_boss = DoomCultist(int(1100 * scale_factor), int(250 * scale_factor),
-                              scale=9 * scale_factor, player=blood_reaper)
+                              scale=9 * scale_factor, player=player)
 elif BOSS_TYPE == 5:  # Add Medusa
     current_boss = Medusa(int(1450 * scale_factor), int(180 * scale_factor),
-                         scale=8 * scale_factor, player=blood_reaper)
+                         scale=8 * scale_factor, player=player)
 
 current_turn = "player"  # giliran "player" atau "enemy"
 enemy_has_attacked = False
@@ -183,7 +189,7 @@ def draw_turn_text():
         screen.blit(turn_notification_img, notif_rect)
 
         # Change text based on game state
-        if blood_reaper.is_dead:
+        if player.is_dead:
             text = font_turn.render("You Lose!", True, (255, 0, 0))
         elif current_boss.is_dead:
             text = font_turn.render("You Win!", True, (0, 255, 0))
@@ -199,42 +205,57 @@ def draw_turn_text():
 def switch_turns():
     global current_turn, enemy_has_attacked, turn_switch_time, player_turn_counter, enemy_turn_counter, round_counter
     
+    # Handle AshenKnight's damage reduction duration at start of turn
+    if isinstance(player, AshenKnight) and player.damage_reduction_active:
+        player.damage_reduction_turns -= 1
+        if player.damage_reduction_turns <= 0:
+            player.damage_reduction_active = False
+            damage_numbers.append(DamageNumber(
+                player.rect.centerx,
+                player.rect.y - 50,
+                "SHIELD OFF",  # Changed from SHIELD EXPIRED!
+                (255, 255, 255),
+                font_size=20,
+                lifetime=60
+            ))
+    
     # Handle combo logic when enemy turn ends
     if current_turn == "enemy":
         # Debug info before checking damage
         print("\nDamage Check Debug:")
-        print("Current damage numbers:")
-        for num in damage_numbers:
-            if isinstance(num, DamageNumber):
-                print(f"- Amount: {num.amount}")
         
         # Get the actual damage number from the most recent DamageNumber
         latest_damage = None
-        for number in damage_numbers:  # Changed from reversed() to regular order
+        for number in damage_numbers:
             if isinstance(number, DamageNumber):
-                if hasattr(number, 'amount') and isinstance(number.amount, (int, float)):
-                    latest_damage = number.amount
-                    print(f"Found damage number: {latest_damage}")
-                    break
-        
+                try:
+                    if hasattr(number, 'amount'):
+                        if isinstance(number.amount, (int, float)):
+                            latest_damage = number.amount
+                            print(f"Found numeric damage: {latest_damage}")
+                        else:
+                            print(f"Found text message: {number.amount}")
+                except UnicodeEncodeError:
+                    print("Found special effect message")
+                    
         print("\nTurn End Debug Info:")
-        print(f"Enemy last_damage_dealt: {current_boss.last_damage_dealt}")
-        print(f"Damage notification shows: {latest_damage}")
-        print(f"Current combo count: {blood_reaper.combo_count}")
+        print(f"Enemy dealt damage: {current_boss.last_damage_dealt}")
+        print(f"Last damage amount: {latest_damage}")
+        print(f"Combo counter: {player.combo_count}")
         
         # Use both checks for damage
         if current_boss.last_damage_dealt or (latest_damage is not None and latest_damage > 0):
-            blood_reaper.combo_count = 0
-            blood_reaper.was_hit = True
-            blood_reaper.should_combo = False
+            player.combo_count = 0
+            player.was_hit = True
+            player.should_combo = False
             print(f">>> Enemy dealt damage - Next turn will be basic attack")
-            print(f">>> Combo reset to: {blood_reaper.combo_count}")
+            print(f">>> Combo reset to: {player.combo_count}")
         else:
-            blood_reaper.was_hit = False
-            blood_reaper.should_combo = True
-            blood_reaper.combo_count += 1
+            player.was_hit = False
+            player.should_combo = True
+            player.combo_count += 1
             print(">>> Enemy missed/blocked - Enabling combo for next turn")
-            print(f">>> New combo count: {blood_reaper.combo_count}")
+            print(f">>> New combo count: {player.combo_count}")
     
     # Reset tracking variables    
     current_boss.last_damage_dealt = False
@@ -250,12 +271,12 @@ def switch_turns():
     
     # Energy recovery every 2 rounds
     if round_counter % 2 == 0:
-        blood_reaper.target_energy = min(blood_reaper.max_energy, blood_reaper.target_energy + 10)
+        player.target_energy = min(player.max_energy, player.target_energy + 10)
         current_boss.target_energy = min(current_boss.max_energy, current_boss.target_energy + 10)
     
     # Existing turn energy regen
     if player_turn_counter >= 6:
-        blood_reaper.target_energy = min(blood_reaper.max_energy, blood_reaper.target_energy + 15)
+        player.target_energy = min(player.max_energy, player.target_energy + 15)
         player_turn_counter = 0
     
     if enemy_turn_counter >= 3:
@@ -270,13 +291,13 @@ while run:
     draw_panel()
     now = pygame.time.get_ticks()  # Add this line to define 'now'
 
-    for character in [blood_reaper, current_boss]:
+    for character in [player, current_boss]:
         character.update()
         character.draw()
 
     # Update UI element positions using scale_pos() for coordinates
-    blood_reaper.draw_health_bar_panel(*scale_pos(250, 790))  # Changed from 350 to 250
-    blood_reaper.draw_energy_bar_panel(*scale_pos(250, 810))  # Changed from 350 to 250
+    player.draw_health_bar_panel(*scale_pos(250, 790))  # Changed from 350 to 250
+    player.draw_energy_bar_panel(*scale_pos(250, 810))  # Changed from 350 to 250
     current_boss.draw_health_bar_panel(*scale_pos(1150, 790))
     current_boss.draw_energy_bar_panel(*scale_pos(1150, 810))
     current_boss.draw_skill_icons()  # Add this line
@@ -290,35 +311,46 @@ while run:
         # Input hanya berlaku saat giliran player dan BloodReaper belum mati
         if current_turn == "player":
             if event.type == pygame.KEYDOWN:
-                if (event.key == pygame.K_s and not blood_reaper.attacking 
-                    and not blood_reaper.is_dead
-                    and not (hasattr(current_boss, 'using_ultimate') and current_boss.using_ultimate)):
-                    # Debug before attack
-                    print("\nPlayer Attack Debug:")
-                    print("BloodReaper initiating attack...")
-                    print(f"Baphomet HP before attack: {current_boss.current_health}/{current_boss.max_hp}")
-                    print(f"Current damage numbers in list: {len(damage_numbers)}")
-                    print("Current damage numbers:")
-                    for dmg in damage_numbers:
-                        print(f"- Amount: {dmg.amount}, Position: ({dmg.x}, {dmg.y})")
+                if event.key == pygame.K_a and not player.attacking:
+                    print("\n=== Basic Attack Debug ===")
+                    print(f"Player Energy: {player.current_energy}/{player.max_energy}")
+                    print(f"Enemy Health: {current_boss.current_health}/{current_boss.max_hp}")
+                    print(f"Current Combo Count: {player.combo_count}")
+                    if hasattr(player, 'damage_reduction_active'):
+                        print(f"Shield Active: {player.damage_reduction_active}")
+                        if player.damage_reduction_active:
+                            print(f"Shield Turns Left: {player.damage_reduction_turns}")
                     
-                    blood_reaper.attack(current_boss)
+                    player.attack(current_boss)
                     
-                    # Move debug prints after a small delay to ensure damage numbers are created
-                    pygame.time.delay(50)  # Add small delay
+                    # Post-attack debug
+                    pygame.time.delay(50)
+                    print("\n=== After Attack ===")
+                    print(f"Enemy Health After Attack: {current_boss.current_health}/{current_boss.max_hp}")
+                    print(f"Player Energy After Attack: {player.current_energy}/{player.max_energy}")
                     
-                    # Debug after attack
-                    print("\nAfter Attack Debug:")
-                    print(f"Current damage numbers list length: {len(damage_numbers)}")
-                    print(f"Baphomet HP after attack: {current_boss.current_health}/{current_boss.max_hp}")
-                    print("\nDamage Numbers Debug:")
-                    print("All current damage numbers:")
-                    for i, dmg in enumerate(damage_numbers):
-                        print(f"Number {i+1}:")
-                        print(f"- Amount: {dmg.amount}")
-                        print(f"- Position: ({dmg.x}, {dmg.y})")
-                        print(f"- Color: {dmg.color}")
-                        print(f"- Lifetime: {dmg.lifetime}")
+                    current_turn = "enemy"
+                    enemy_has_attacked = False
+                    turn_switch_time = pygame.time.get_ticks()
+                    start_turn_notification()
+
+                # Add check for AshenKnight before checking skill usage
+                elif (event.key == pygame.K_s and isinstance(player, AshenKnight) 
+                      and not player.using_skill 
+                      and not player.is_dead 
+                      and player.current_energy >= player.skill_energy_cost):
+                    print("\n=== Skill Activation Debug ===")
+                    print(f"Player Energy: {player.current_energy}/{player.max_energy}")
+                    print("Activating Damage Reduction Shield")
+                    print(f"Shield Duration: {player.damage_reduction_turns} turns")
+                    print(f"Energy Cost: {player.skill_energy_cost}")
+                    
+                    player.use_skill()
+                    
+                    # Post-skill debug
+                    print("\n=== After Skill Use ===")
+                    print(f"Shield Active: {player.damage_reduction_active}")
+                    print(f"Player Energy After Skill: {player.current_energy}/{player.max_energy}")
                     
                     current_turn = "enemy"
                     enemy_has_attacked = False
@@ -326,34 +358,47 @@ while run:
                     start_turn_notification()
 
     # Giliran musuh hanya jika BloodReaper belum mati
-    if current_turn == "enemy" and not current_boss.is_dead:
+    if current_turn == "enemy" and not current_boss.is_dead and not player.is_dead:  # Add check for player.is_dead
         if now - turn_switch_time > turn_switch_delay:
             if not current_boss.attacking and not enemy_has_attacked:
-                current_boss.attack(blood_reaper)
+                current_boss.attack(player)
                 enemy_has_attacked = True
 
             if not current_boss.attacking and enemy_has_attacked:
                 switch_turns()
 
-    # Update and draw damage numbers and combo texts
+    # Update this section in the main loop
     for number in damage_numbers[:]:
-        # Add debug print with proper type checking
+        # Only print debug messages for actual damage numbers or important effects
         if isinstance(number, DamageNumber):
-            print(f"Drawing damage number: {number.amount} at ({number.x}, {number.y})")
+            try:
+                # Skip debug output for shield status messages
+                if not str(number.amount).startswith("SHIELD"):
+                    if isinstance(number.amount, str):
+                        print(f"Special message: {number.amount}")
+                    else:
+                        print(f"Damage dealt: {number.amount}")
+            except UnicodeEncodeError:
+                print("Special effect triggered")
         elif isinstance(number, ComboText):
-            print(f"Drawing combo text: {number.text} at ({number.x}, {number.y})")
-        
+            print(f"Combo: {number.text}")
+            
         number.update()
         number.draw(screen)
         
-        # Removal check with proper type checking
         if isinstance(number, DamageNumber) and number.lifetime <= 0:
-            print(f"Removing damage number: {number.amount}")
+            try:
+                # Only show removal message for actual damage
+                if not str(number.amount).startswith("SHIELD"):
+                    print(f"Removed damage number: {number.amount}")
+            except UnicodeEncodeError:
+                pass
             damage_numbers.remove(number)
         elif isinstance(number, ComboText) and number.lifetime <= 0:
-            print(f"Removing combo text: {number.text}")
+            print(f"Removed combo: {number.text}")
             damage_numbers.remove(number)
     
+    player.draw_skill_icons()    
     pygame.display.update()
 
 pygame.quit()

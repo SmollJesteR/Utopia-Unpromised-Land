@@ -8,12 +8,11 @@ if TYPE_CHECKING:
 
 pygame.mixer.init()
 
-# Sound effects
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
-bad_sfx = pygame.mixer.Sound('Assets/SFX/BA_D.wav')  # Using Cyclops's basic attack sound temporarily 
-idled_sfx = pygame.mixer.Sound('Assets/SFX/Idle_D.wav')  # Using Cyclops's idle sound
-doomhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_D.wav')  # Using Cyclops's hit sound temporarily
+# Sound effects - use DoomCultist-specific sounds only
+bad_sfx = pygame.mixer.Sound('Assets/SFX/BA_D.wav')
+idled_sfx = pygame.mixer.Sound('Assets/SFX/Idle_D.wav')
 deathd_sfx = pygame.mixer.Sound('Assets/SFX/Death_D.wav')
+doomculthit_sfx = pygame.mixer.Sound('Assets/SFX/MA_D.wav')
 
 class DoomCultist(Boss):
     def __init__(self, x, y, scale, player=None):
@@ -105,8 +104,7 @@ class DoomCultist(Boss):
                 self.action = 1
                 self.attack_target = target
                 self.target_energy = max(0, self.target_energy - self.basic_attack_cost)
-                pygame.mixer.Sound.play(monster_sfx)
-                pygame.mixer.Sound.play(bad_sfx)
+                pygame.mixer.Sound.play(bad_sfx)  # Only play DoomCultist attack sound
                 return True
         return False
 
@@ -119,6 +117,9 @@ class DoomCultist(Boss):
         self.is_hit = True
         self.hit_time = pygame.time.get_ticks()
         self.alpha = 128
+
+        # Play DoomCultist specific hit sound
+        pygame.mixer.Sound.play(doomculthit_sfx)
         
         damage_dealt = super().take_damage(amount)
         self.last_damage_dealt = (damage_dealt > 0)
@@ -199,24 +200,28 @@ class DoomCultist(Boss):
                     # Apply damage at middle frame
                     if not self.attack_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
-                            # Double damage on rage turns
+                            # Calculate damage considering rage state
                             actual_strength = self.strength * 2 if self.is_rage_turn else self.strength
-                            damage_done = self.attack_target.take_damage(actual_strength)
-                            self.last_damage_dealt = (damage_done > 0)
+                            damage_dealt = self.attack_target.take_damage(actual_strength)
+                            self.last_damage_dealt = (damage_dealt > 0)
                             
-                            # Create damage number
+                            # Hapus bagian ini yang memainkan monster_sfx
+                            # if damage_dealt > 0:
+                            #     pygame.mixer.Sound.play(monster_sfx)
+                            
+                            # Show damage number
                             damage_numbers.append(DamageNumber(
                                 self.attack_target.rect.centerx,
                                 self.attack_target.rect.y - 50,
-                                actual_strength if damage_done > 0 else "Miss!",
-                                (255, 0, 0) if damage_done > 0 else (255, 255, 255),
+                                damage_dealt if damage_dealt > 0 else "Miss!",
+                                (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
                                 font_size=20,
-                                velocity=-2,
                                 lifetime=30
                             ))
-                            
+
+                            # Update player combat state
                             if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
-                                if damage_done > 0:
+                                if damage_dealt > 0:
                                     self.attack_target.was_hit = True
                                     self.attack_target.combo_count = 0
                                     self.attack_target.should_combo = False

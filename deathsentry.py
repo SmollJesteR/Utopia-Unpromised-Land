@@ -14,7 +14,7 @@ boss1_sfx = pygame.mixer.Sound('Assets/SFX/BA_DS.wav')
 deathboss1_sfx = pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 skillboss1_sfx = pygame.mixer.Sound('Assets/SFX/Skill_DS.wav')
 ultimateboss1_sfx = pygame.mixer.Sound('Assets/SFX/Ultimate_DS.wav')
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
+deathsentryattack_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')  # Rename to be more specific
 idleds_sfx = pygame.mixer.Sound('Assets/SFX/Idle_DS.wav')
 
 class DeathSentry(Boss):
@@ -190,7 +190,7 @@ class DeathSentry(Boss):
         self.rect.center = (self.pos_x, self.pos_y)  # Now pos_x and pos_y will exist
 
     def attack(self, target):
-        self.last_damage_dealt = False
+        self.last_damage_dealt = False  # Reset damage flag
         if not self.is_dying and not self.is_dead:
             # Add energy check for basic attack
             basic_attack_cost = 20
@@ -204,15 +204,14 @@ class DeathSentry(Boss):
                 elif self.current_energy >= self.skill_energy_cost and random.random() < 0.3:
                     self.active_skill = 'skill'
                     self.use_skill()
-                elif self.current_energy >= basic_attack_cost:  # Add check for basic attack energy
+                elif self.current_energy >= basic_attack_cost:
                     self.active_skill = 'basic'
                     self.attacking = True
                     self.attack_applied = False
-                    self.action = 1  # Set to attack animation
-                    self.frame_index = 0  # Reset frame index
+                    self.action = 1
+                    self.frame_index = 0
                     self.target_energy = max(0, self.target_energy - basic_attack_cost)
-                    pygame.mixer.Sound.play(monster_sfx)
-                    pygame.mixer.Sound.play(boss1_sfx)
+                    pygame.mixer.Sound.play(boss1_sfx)  # Only play boss attack sound, remove monster_sfx
 
     def take_damage(self, amount):
         # Stop idle sound when hit
@@ -272,22 +271,14 @@ class DeathSentry(Boss):
             if hasattr(self, "attack_target") and self.attack_target:
                 damage_done = self.attack_target.take_damage(self.initial_ultimate_damage)
                 self.last_damage_dealt = (damage_done > 0)
-                self.initial_damage_done = True
                 
-                # Change this check to use entity_type instead of isinstance
-                if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player" and damage_done > 0:
+                # Update player combat state
+                if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
                     self.attack_target.combo_count = 0
                     self.attack_target.should_combo = False
-                
-                damage_numbers.append(DamageNumber(
-                    self.attack_target.rect.centerx,
-                    self.attack_target.rect.y - 50,
-                    self.initial_ultimate_damage,
-                    (255, 0, 0),
-                    lifetime=30  # Increased from 90 to 120 for longer fade
-                ))
-            
+                    
             # Reset sequence variables
+            self.damage_ticks = 0
             self.damage_number_index = 0
             self.ultimate_start_time = pygame.time.get_ticks()
             self.next_damage_number_time = self.ultimate_start_time + 500
@@ -417,6 +408,32 @@ class DeathSentry(Boss):
             self.image = self.animation_list[4][self.frame_index]
             return
 
+        # Handle attack animation
+        if self.action == 1:
+            if not self.attack_applied and self.frame_index == 4:
+                if hasattr(self, "attack_target"):
+                    # Apply damage and get actual dealt amount
+                    damage_amount = self.strength
+                    damage_dealt = self.attack_target.take_damage(damage_amount)
+                    self.last_damage_dealt = (damage_dealt > 0)
+                    
+                    # Create single damage notification
+                    if hasattr(self.attack_target, 'damage_reduction_active') and self.attack_target.damage_reduction_active:
+                        # Let target handle shield notification
+                        pass
+                    else:
+                        # Only show damage number if not shielded
+                        damage_numbers.append(DamageNumber(
+                            self.attack_target.rect.centerx,
+                            self.attack_target.rect.y - 50,
+                            damage_dealt,
+                            (255, 0, 0),
+                            font_size=20,
+                            lifetime=30
+                        ))
+
+                    self.attack_applied = True
+
         # Handle basic attack end
         if self.action == 1 and self.frame_index >= len(self.animation_list[1]) - 1:
             self.action = 0
@@ -434,34 +451,19 @@ class DeathSentry(Boss):
 
     def show_next_damage_number(self):
         if hasattr(self, "attack_target"):
-            start_y = self.attack_target.rect.y - 100
-            pygame.mixer.Sound.play(monster_sfx)  # Play hit sound for each damage tick
+            pygame.mixer.Sound.play(monster_sfx)
             
-            # Initial burst (20) has already been applied in use_ultimate()
-            # So here we only deal the 10 damage ticks
-            damage_amount = 10
-            lifetime = 90  # Increased from 60 to 90 for more consistent fade timing
-            
-            damage_done = self.attack_target.take_damage(damage_amount)
+            # Let target handle damage reduction
+            damage_done = self.attack_target.take_damage(10)
             self.last_damage_dealt = (damage_done > 0)
             
-            # Change this check too
-            if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player" and damage_done > 0:
-                self.attack_target.combo_count = 0
-                self.attack_target.should_combo = False
-                
-            # Increment damage_number_index to stack numbers vertically
-            self.damage_number_index += 1
+            if damage_done > 0 and hasattr(self.attack_target, 'entity_type'):
+                if self.attack_target.entity_type == "player":
+                    self.attack_target.combo_count = 0
+                    self.attack_target.should_combo = False
             
-            damage_numbers.append(DamageNumber(
-                self.attack_target.rect.centerx,
-                start_y + (self.damage_number_index * 40),
-                damage_amount,
-                (255, 255, 0),
-                font_size=20,
-                velocity=-2,
-                lifetime=30  # Increased from 60 to 90 for more consistent fade timing
-            ))
+            # Increment vertical position for each damage number
+            self.damage_number_index += 1
 
     def draw_skill_icons(self):
         if self.is_dead or self.is_dying:

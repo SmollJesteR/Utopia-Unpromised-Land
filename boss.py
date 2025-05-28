@@ -10,8 +10,7 @@ if TYPE_CHECKING:
 # Initialize pygame mixer before loading sounds
 pygame.mixer.init()
 
-# Import sound effects only
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
+# Remove player hit sounds, only keep boss-specific sounds
 boss1_sfx = pygame.mixer.Sound('Assets/SFX/BA_DS.wav')
 deathboss1_sfx = pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 
@@ -50,8 +49,8 @@ class Boss(Entity):
             self.action = 1
             self.attack_target = target
             self.target_energy = max(0, self.target_energy - 20)
-            pygame.mixer.Sound.play(monster_sfx)
-            pygame.mixer.Sound.play(boss1_sfx)  
+            # Only play boss attack sound, remove monster_sfx
+            pygame.mixer.Sound.play(boss1_sfx)
 
     def update(self):
         animation_cooldown = 150

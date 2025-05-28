@@ -8,12 +8,12 @@ if TYPE_CHECKING:
 
 pygame.mixer.init()
 
-# Sound effects
-monster_sfx = pygame.mixer.Sound('Assets/SFX/MA.wav')
+# Sound effects - use Medusa-specific sounds only
 bam_sfx = pygame.mixer.Sound('Assets/SFX/BA_M.wav')
 idlem_sfx = pygame.mixer.Sound('Assets/SFX/Idle_M.wav')
 deathm_sfx = pygame.mixer.Sound('Assets/SFX/Death_M.wav')
-medusahit_sfx = pygame.mixer.Sound('Assets/SFX/MA_M.wav')  # Use Cyclops hit sound temporarily
+medusahit_sfx = pygame.mixer.Sound('Assets/SFX/MA_M.wav')
+# Remove monster_sfx since it's for player hits
 
 class Medusa(Boss):
     def __init__(self, x, y, scale, player=None):
@@ -92,7 +92,7 @@ class Medusa(Boss):
         self.rect.center = (self.pos_x, self.pos_y)
 
     def attack(self, target):
-        self.last_damage_dealt = False  # Reset damage flag at start
+        self.last_damage_dealt = False  # Reset damage flag
 
         # Update turn counter and check for curse activation
         self.turn_counter += 1
@@ -138,7 +138,6 @@ class Medusa(Boss):
                 self.action = 1
                 self.attack_target = target
                 self.target_energy = max(0, self.target_energy - self.basic_attack_cost)
-                pygame.mixer.Sound.play(monster_sfx)
                 pygame.mixer.Sound.play(bam_sfx)
                 return True
         return False
@@ -222,24 +221,27 @@ class Medusa(Boss):
                 else:
                     if not self.attack_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
-                            # Apply normal damage 
-                            damage_done = self.attack_target.take_damage(self.strength)
-                            self.last_damage_dealt = (damage_done > 0)  # Track if damage was dealt
+                            # Apply damage and get actual damage dealt back
+                            damage_amount = self.strength
+                            damage_dealt = self.attack_target.take_damage(damage_amount)
+                            self.last_damage_dealt = (damage_dealt > 0)
                             
-                            # Create damage number
+                            # Show actual damage dealt in notification
                             damage_numbers.append(DamageNumber(
                                 self.attack_target.rect.centerx,
                                 self.attack_target.rect.y - 50,
-                                self.strength if damage_done > 0 else "Miss!",
-                                (255, 0, 0) if damage_done > 0 else (255, 255, 255),
+                                damage_dealt if damage_dealt > 0 else "Miss!",
+                                (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
                                 font_size=20,
-                                velocity=-2,
                                 lifetime=30
                             ))
                             
+                            if damage_dealt > 0:
+                                print(f"Enemy dealt {damage_dealt} damage!")
+
                             # Update player combo state
                             if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
-                                if damage_done > 0:
+                                if damage_dealt > 0:
                                     self.attack_target.was_hit = True
                                     self.attack_target.combo_count = 0
                                     self.attack_target.should_combo = False
