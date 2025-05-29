@@ -165,6 +165,28 @@ class Player(pygame.sprite.Sprite):
                     self.animation_loop += 0.1
                     if self.animation_loop >= 9:
                         self.animation_loop = 1
+                        
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, game, x, y,type):
+        self.game = game
+        self._layer = ENEMY_LAYER
+        self.groups = self.game.enemies ,self.game.all_sprites
+        pygame.sprite.Sprite.__init__ (self, self.groups)
+        
+        self.x = x * TILESIZE
+        self.y = y * TILESIZE
+        self.width = TILESIZE
+        self.height = TILESIZE
+        
+        self.image = self.game.tile_spritesheet.get_sprite(0,0,self.width, self.height)
+        
+        self.rect = self.image.get_rect()
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+        self.enemytype = type
+        self.alive = True
+
 
 class Block(pygame.sprite.Sprite):
     def __init__(self, game, x, y):

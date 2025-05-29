@@ -6,6 +6,7 @@ from camera_system import Camera
 
 
 
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -33,6 +34,8 @@ class Game:
                     Block(self, j, i)
                 if tile == 'P':
                     Player(self, j, i)
+                if tile == 'E':
+                    Enemy(self, j, i,1)
 
     def new(self):
         self.playing = True
@@ -63,7 +66,20 @@ class Game:
     def update(self):
         self.all_sprites.update()
         self.camera.update(self.player)
-        
+
+         # Cek collision dengan enemy
+        enemy_hit = pygame.sprite.spritecollideany(self.player, self.enemies)
+        if enemy_hit:
+            # Pause musik eksplorasi
+            pygame.mixer.music.stop()
+            
+            # Jalankan mode battle dengan transisi
+            #BUATIN REY FUNGSI MAIN BATTLENYA(NAMA FUNGSI ADALAH RUN_BATTLE)
+            #run_battle(self.screen)
+
+            # Setelah battle selesai, lanjutkan musik eksplorasi
+            pygame.mixer.music.play(-1)
+
     def draw(self):
         self.camera_surface.fill(BLACK)
         for sprite in self.all_sprites:
