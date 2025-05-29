@@ -62,7 +62,27 @@ class Game:
             if event.type == pygame.QUIT:
                 self.playing = False
                 self.running = False
-        
+
+    def fade_out(self, color=(0, 0, 0), speed=5):
+        fade_surface = pygame.Surface((WIN_WIDTH, WIN_HEIGHT))
+        fade_surface.fill(color)
+        for alpha in range(0, 256, speed):
+            fade_surface.set_alpha(alpha)
+            self.draw()  # Gambar game sebelum ditutup
+            self.screen.blit(fade_surface, (0, 0))
+            pygame.display.update()
+            self.clock.tick(FPS)
+
+    def fade_in(self, color=(0, 0, 0), speed=5):
+        fade_surface = pygame.Surface((WIN_WIDTH, WIN_HEIGHT))
+        fade_surface.fill(color)
+        for alpha in range(255, -1, -speed):
+            fade_surface.set_alpha(alpha)
+            self.draw()  # Gambar game yang muncul kembali
+            self.screen.blit(fade_surface, (0, 0))
+            pygame.display.update()
+            self.clock.tick(FPS)
+            
     def update(self):
         self.all_sprites.update()
         self.camera.update(self.player)
