@@ -16,6 +16,11 @@ from ashenknight import AshenKnight  # Add this import
 pygame.init()
 pygame.mixer.init()
 
+# Add tree stat variables
+TREE_STAT_STRENGTH = 0  # 0 = base (10/60), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
+TREE_STAT_ENERGY = 0    # 0 = base (100/300), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1  
+TREE_STAT_HEALTH = -100    # 0 = base (100/120), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
+
 bgm_list = [
     'Assets/Music/Battle/B1.wav',
     'Assets/Music/Battle/B2.wav',
@@ -122,15 +127,23 @@ def draw_panel():
     screen.blit(scaled_surface, (padding_x, padding_y))
 
 # Change player character selection (add this near BloodReaper initialization)
-PLAYER_TYPE = 2  # 1 for BloodReaper, 2 for AshenKnight
+PLAYER_TYPE = 1 # 1 for BloodReaper, 2 for AshenKnight
 
 if PLAYER_TYPE == 1:
-    player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), scale=4.2 * scale_factor)
+    player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), 
+                        scale=4.2 * scale_factor, 
+                        strength_level=TREE_STAT_STRENGTH,
+                        energy_level=TREE_STAT_ENERGY,
+                        health_level=TREE_STAT_HEALTH)
 elif PLAYER_TYPE == 2:
-    player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), scale=7.2 * scale_factor)
+    player = AshenKnight(int(500 * scale_factor), int(500 * scale_factor), 
+                        scale=7.2 * scale_factor,
+                        strength_level=TREE_STAT_STRENGTH,
+                        energy_level=TREE_STAT_ENERGY,
+                        health_level=TREE_STAT_HEALTH)
 
 # Update boss type selection
-BOSS_TYPE = 1 # Add Medusa as type 5
+BOSS_TYPE = 2 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
@@ -205,13 +218,15 @@ def draw_turn_text():
 def switch_turns():
     global current_turn, enemy_has_attacked, turn_switch_time, player_turn_counter, enemy_turn_counter, round_counter
     
-    # Handle AshenKnight's damage reduction duration at start of turn
-    if isinstance(player, AshenKnight) and player.damage_reduction_active:
+    # Handle AshenKnight's and BloodReaper's damage reduction duration at start of turn
+    if isinstance(player, (AshenKnight, BloodReaper)) and player.damage_reduction_active:
         # Decrement shield turns only after enemy's turn completes
         if enemy_has_attacked and player.damage_reduction_turns > 0:
-            player.damage_reduction_turns -= 1
-            print(f"Shield turns remaining: {player.damage_reduction_turns}")  # Debug log
-            if player.damage_reduction_turns <= 0:
+            if player.damage_reduction_turns > 1:  # Only decrement if more than 1 turn left
+                player.damage_reduction_turns -= 1
+                print(f"Shield turns remaining: {player.damage_reduction_turns}")
+            else:  # Last turn - break shield
+                player.damage_reduction_turns = 0
                 player.damage_reduction_active = False
                 damage_numbers.append(DamageNumber(
                     player.rect.x + 50,
@@ -336,7 +351,7 @@ while run:
                 if event.key == pygame.K_a and not player.attacking:
                     print("\n=== Basic Attack Debug ===")
                     print(f"Player Energy: {player.current_energy}/{player.max_energy}")
-                    print(f"Enemy Health: {current_boss.current_health}/{current_boss.max_hp}")
+                    print(f"Enemy Health: {current_boss.current_health}/{current_boss.max_health}")
                     print(f"Current Combo Count: {player.combo_count}")
                     if hasattr(player, 'damage_reduction_active'):
                         print(f"Shield Active: {player.damage_reduction_active}")
@@ -348,7 +363,7 @@ while run:
                     # Post-attack debug
                     pygame.time.delay(50)
                     print("\n=== After Attack ===")
-                    print(f"Enemy Health After Attack: {current_boss.current_health}/{current_boss.max_hp}")
+                    print(f"Enemy Health After Attack: {current_boss.current_health}/{current_boss.max_health}")
                     print(f"Player Energy After Attack: {player.current_energy}/{player.max_energy}")
                     
                     current_turn = "enemy"
@@ -373,6 +388,52 @@ while run:
                     print("\n=== After Skill Use ===")
                     print(f"Shield Active: {player.damage_reduction_active}")
                     print(f"Player Energy After Skill: {player.current_energy}/{player.max_energy}")
+                    
+                    current_turn = "enemy"
+                    enemy_has_attacked = False
+                    turn_switch_time = pygame.time.get_ticks()
+                    start_turn_notification()
+
+                # Add ultimate handler
+                elif (event.key == pygame.K_d and isinstance(player, AshenKnight)
+                      and not player.using_ultimate
+                      and not player.is_dead
+                      and player.current_energy >= player.ultimate_energy_cost):
+                    print("\n=== Ultimate Activation Debug ===")
+                    print(f"Player Energy: {player.current_energy}/{player.max_energy}")
+                    print("Activating Full Heal Ultimate")
+                    print(f"Energy Cost: {player.ultimate_energy_cost}")
+                    
+                    player.use_ultimate()
+                    
+                    # Post-ultimate debug
+                    print("\n=== After Ultimate Use ===")
+                    print(f"Player Health: {player.current_health}/{player.max_health}")
+                    print(f"Player Energy After Ultimate: {player.current_energy}/{player.max_energy}")
+                    
+                    current_turn = "enemy"
+                    enemy_has_attacked = False
+                    turn_switch_time = pygame.time.get_ticks()
+                    start_turn_notification()
+
+                # Add heal handler for BloodReaper
+                elif ((event.key == pygame.K_f) and 
+                      (isinstance(player, AshenKnight) or isinstance(player, BloodReaper)) and
+                      not player.using_heal and
+                      not player.is_dead and
+                      player.current_energy >= player.heal_energy_cost):
+                    print("\n=== Heal Activation Debug ===")
+                    print(f"Player Energy: {player.current_energy}/{player.max_energy}")
+                    print("Activating Heal")
+                    print(f"Heal Amount: {player.heal_amount}")
+                    print(f"Energy Cost: {player.heal_energy_cost}")
+                    
+                    player.use_heal()
+                    
+                    # Post-heal debug
+                    print("\n=== After Heal Use ===")
+                    print(f"Player Health: {player.current_health}/{player.max_health}")
+                    print(f"Player Energy After Heal: {player.current_energy}/{player.max_energy}")
                     
                     current_turn = "enemy"
                     enemy_has_attacked = False

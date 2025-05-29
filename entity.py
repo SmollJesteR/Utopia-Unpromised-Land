@@ -8,22 +8,21 @@ death_sfx = {
 }
 
 class Entity():
-    def __init__(self, x, y, max_hp, strength, potion, name, scale, skip_animation=False):
+    def __init__(self, x, y, max_health, max_strength, name, scale, skip_animation=False):
         self.name = name
-        self.max_hp = max_hp
-        self.hp = max_hp
-        self.strength = strength
-        self.potion = potion
+        self.max_health = max_health
+        self.hp = max_health
+        self.max_strength = max_strength
         self.alive = True
         self.animation_list = []
         self.action = 0
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
 
-        self.target_health = max_hp
-        self.current_health = max_hp
+        self.target_health = max_health
+        self.current_health = max_health
         self.health_bar_length = 350  
-        self.health_ratio = self.max_hp / self.health_bar_length
+        self.health_ratio = self.max_health / self.health_bar_length
         self.health_change_speed = 0.2
 
         self.max_energy = 100
@@ -65,7 +64,7 @@ class Entity():
         self.animation_list.append(temp_list)
 
     def update_health(self):
-        self.target_health = max(0, min(self.target_health, self.max_hp))
+        self.target_health = max(0, min(self.target_health, self.max_health))
 
     def update_energy(self):
         self.target_energy = max(0, min(self.target_energy, self.max_energy))

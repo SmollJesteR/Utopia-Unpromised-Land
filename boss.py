@@ -15,8 +15,8 @@ boss1_sfx = pygame.mixer.Sound('Assets/SFX/BA_DS.wav')
 deathboss1_sfx = pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 
 class Boss(Entity):
-    def __init__(self, x, y, max_hp, strength, potion, name, scale, skip_animation=False):
-        super().__init__(x, y, max_hp, strength, potion, name, scale, skip_animation=skip_animation)
+    def __init__(self, x, y, max_health, max_strength, name, scale, skip_animation=False):
+        super().__init__(x, y, max_health, max_strength, name, scale, skip_animation=skip_animation)
         self.entity_type = "boss"
         self.last_damage_dealt = False
         self.damage_done = 0
@@ -102,7 +102,7 @@ class Boss(Entity):
         # Lakukan damage sekali di frame terakhir animasi attack
         if self.action == 1:
             if (not self.attack_applied) and (self.frame_index == len(self.animation_list[1]) - 1):
-                base_damage = self.strength
+                base_damage = self.max_strength
                 if hasattr(self, "attack_target") and self.attack_target:
                     damage_done = self.attack_target.take_damage(base_damage)
                     self.damage_done = base_damage
@@ -136,7 +136,7 @@ class Boss(Entity):
         else:
             combo_multiplier = 1  # No combo multiplier for non-player entities
             
-        base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
+        base_damage = self.max_strength * 2 if random.random() < 0.35 else self.max_strength
         total_damage = int(base_damage * combo_multiplier)
         damage_done = self.attack_target.take_damage(total_damage)
         
@@ -162,7 +162,7 @@ class Boss(Entity):
 
         # Only apply lifesteal if damage was dealt and health isn't full
         if damage_done > 0 and isinstance(self, BloodReaper):
-            missing_health = self.max_hp - self.target_health
+            missing_health = self.max_health - self.target_health
             if missing_health > 0:
                 heal_amount = min(int(damage_done * 0.20), missing_health)  # Cap healing at missing health
                 if heal_amount > 0:

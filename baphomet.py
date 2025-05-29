@@ -19,7 +19,7 @@ class Baphomet(Boss):
         # Set position before super().__init__
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=1000, strength=50, potion=3, name="Baphomet", scale=scale)
+        super().__init__(x, y, max_health=1500, max_strength=50, name="Baphomet", scale=scale)
         
         # Add energy system attributes
         self.max_energy = 500  # Same as DeathSentry's system
@@ -42,7 +42,7 @@ class Baphomet(Boss):
         self.icon_base_x = 1360  # Changed from 1350 to 1400 to move right
         self.icon_base_y = 870
         self.icon_spacing = 120
-        self.basic_attack_icon = pygame.image.load('img\Baphomet\Skill_icon\BasicAttack_B.png').convert_alpha()
+        self.basic_attack_icon = pygame.image.load('img/Baphomet/Skill_icon/BasicAttack_B.png').convert_alpha()
         self.basic_attack_icon = pygame.transform.scale(self.basic_attack_icon, 
             (int(self.basic_attack_icon.get_width() * ICON_SCALE), 
              int(self.basic_attack_icon.get_height() * ICON_SCALE)))
@@ -90,7 +90,7 @@ class Baphomet(Boss):
 
     def calculate_rage_multiplier(self):
         # Calculate damage multiplier based on missing health percentage
-        health_percent = (self.current_health / self.max_hp) * 100
+        health_percent = (self.current_health / self.max_health) * 100
         # Reduced multiplier to max 1.25x damage at low health (was 2x)
         multiplier = 0.5 + ((100 - health_percent) / 100)  # Changed from /100 to /400
         return multiplier
@@ -204,7 +204,7 @@ class Baphomet(Boss):
                 if not self.attack_applied and self.frame_index == 7:
                     if hasattr(self, "attack_target"):
                         # Calculate base damage with rage multiplier
-                        base_damage = int(self.strength * self.calculate_rage_multiplier())
+                        base_damage = int(self.max_strength * self.calculate_rage_multiplier())
                         # Apply damage and get actual damage dealt back
                         damage_dealt = self.attack_target.take_damage(base_damage)
                         self.last_damage_dealt = (damage_dealt > 0)

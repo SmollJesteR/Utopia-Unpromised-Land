@@ -18,7 +18,7 @@ class Cyclops(Boss):
     def __init__(self, x, y, scale, player=None):
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=1000, strength=20, potion=3, name="Cyclops", scale=scale)
+        super().__init__(x, y, max_health=1000, max_strength=20, name="Cyclops", scale=scale)
         
         # Energy system attributes
         self.max_energy = 200
@@ -35,7 +35,7 @@ class Cyclops(Boss):
         self.is_dead = False
         self.attacking = False
         self.attack_applied = False
-        self.dodge_chance = 0.5  # 50% dodge chance passive
+        self.dodge_chance = 0.25  # 25% dodge chance passive
 
         # Basic attack icon (using Baphomet's)
         ICON_SCALE = 0.1
@@ -210,7 +210,7 @@ class Cyclops(Boss):
                     if not self.attack_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
                             # Apply damage and get actual damage dealt back
-                            damage_amount = self.strength
+                            damage_amount = self.max_strength
                             damage_dealt = self.attack_target.take_damage(damage_amount)
                             self.last_damage_dealt = (damage_dealt > 0)
                             
@@ -226,7 +226,7 @@ class Cyclops(Boss):
                             ))
                             
                             if damage_dealt > 0:
-                                print(f"Enemy dealt {self.strength} damage!")
+                                print(f"Enemy dealt {self.max_strength} damage!")
                                 
                             if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
                                 if damage_dealt > 0:

@@ -23,17 +23,41 @@ deathsentryhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DS.wav')
 ashenknighthit_sfx = pygame.mixer.Sound('Assets/SFX/MA_AK.wav')  # Add hit sound here
 ashenknightskill_sfx = pygame.mixer.Sound('Assets/SFX/Skill_AK.wav')  # Add kill sound here
 ashenknightshieldhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_SHIELD_AK.wav')  # Add shield hit sound here
+ashenknightultimate_sfx = pygame.mixer.Sound('Assets/SFX/Ultimate_AK.wav')  # Add ultimate sound here
+ashenknightheal_sfx = pygame.mixer.Sound('Assets/SFX/Heal_AK.wav')  # Add heal sound here
 
 class AshenKnight(Entity):
-    def __init__(self, x, y, scale):
-        self.pos_x = x  # Set position before super().__init__
+    def __init__(self, x, y, scale, strength_level=0, energy_level=0, health_level=0):
+        self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=120, strength=60, potion=3, name="AshenKnight", scale=scale)
+
+        # Calculate stat bonuses based on tree levels
+        base_strength = 60
+        bonus_strength = strength_level * 10
+        # Ensure total strength doesn't go below 1
+        total_strength = max(1, base_strength + bonus_strength)
         
-        # Update max energy and initial energy values
-        self.max_energy = 300  # Customize max energy here
-        self.target_energy = self.max_energy  # Set initial target to max
-        self.current_energy = self.max_energy  # Set initial current to max
+        base_health = 120
+        bonus_health = health_level * 10
+        # Ensure total health doesn't go below 1
+        total_health = max(1, base_health + bonus_health)
+        
+        base_energy = 300
+        bonus_energy = energy_level * 10
+        # Ensure total energy doesn't go below 1
+        total_energy = max(1, base_energy + bonus_energy)
+        
+        # Initialize with capped stats
+        super().__init__(x, y, 
+                        max_health=total_health,
+                        max_strength=total_strength,
+                        name="AshenKnight", 
+                        scale=scale)
+        
+        # Store capped energy
+        self.max_energy = total_energy
+        self.target_energy = self.max_energy
+        self.current_energy = self.max_energy
         self.energy_bar_length = 350  # Same visual bar length as BloodReaper
         self.energy_ratio = self.max_energy / self.energy_bar_length  # Calculate ratio
         self.energy_change_speed = 1  # Add energy change speed like BloodReaper
@@ -55,11 +79,11 @@ class AshenKnight(Entity):
         self.death_sound = deathashenknight_sfx
         self.update_time = pygame.time.get_ticks()
 
-        # Icon setup
+        # Icon setup - samakan dengan DoomCultist
         ICON_SCALE = 0.1
-        self.icon_base_x = 460
-        self.icon_base_y = 870
-        self.icon_spacing = 60
+        self.icon_base_x = 460  # Tetap di kiri karena player
+        self.icon_base_y = 870  # Samakan dengan DoomCultist
+        self.icon_spacing = 120  # Samakan spacing dengan DoomCultist
         
         # Load both basic attack and skill icons
         self.basic_attack_icon = pygame.image.load('img/AshenKnight/Skill_icon/BasicAttack_AK.png').convert_alpha()
@@ -73,7 +97,30 @@ class AshenKnight(Entity):
             (int(self.skill_icon.get_width() * ICON_SCALE),
              int(self.skill_icon.get_height() * ICON_SCALE)))
              
-        self.skill_icons_alpha = {'basic': 128, 'skill': 128}
+        # Add ultimate properties
+        self.using_ultimate = False
+        self.ultimate_applied = False
+        self.ultimate_energy_cost = self.max_energy // 2  # Half of max energy
+        
+        # Load ultimate icon
+        self.ultimate_icon = pygame.image.load('img/AshenKnight/Skill_icon/Ultimate_AK.png').convert_alpha()
+        self.ultimate_icon = pygame.transform.scale(self.ultimate_icon,
+            (int(self.ultimate_icon.get_width() * ICON_SCALE),
+             int(self.ultimate_icon.get_height() * ICON_SCALE)))
+        
+        # Add heal skill properties
+        self.using_heal = False
+        self.heal_applied = False
+        self.heal_amount = 30
+        self.heal_energy_cost = 20
+        
+        # Load heal icon (using ultimate icon temporarily)
+        self.heal_icon = pygame.image.load('img/AshenKnight/Skill_icon/Heal_AK.png').convert_alpha()
+        self.heal_icon = pygame.transform.scale(self.heal_icon,
+            (int(self.heal_icon.get_width() * ICON_SCALE),
+             int(self.heal_icon.get_height() * ICON_SCALE)))
+        
+        self.skill_icons_alpha = {'basic': 128, 'skill': 128, 'ultimate': 128, 'heal': 128}
 
         # Animation loading
         self.load_animations(scale)
@@ -99,6 +146,15 @@ class AshenKnight(Entity):
             img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
             temp_list.append(img)
         self.animation_list.append(temp_list)  # index 3 for skill animation
+
+        # Load Ultimate animation
+        temp_list = []
+        for i in range(7):  # 7 frames for ultimate
+            img_path = f'img/AshenKnight/Ultimate/{i+1}.png'
+            img = pygame.image.load(img_path).convert_alpha()
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)  # index 4 for ultimate animation
 
         # Add this to track if ultimate was blocked
         self.blocked_ultimate = False
@@ -162,14 +218,18 @@ class AshenKnight(Entity):
             health_diff = self.current_health - self.target_health
             transition_step = (health_diff / 20)
             self.current_health = max(self.target_health, self.current_health - transition_step)
-            transition_width = int((self.current_health - self.target_health) / self.health_ratio)
+            # Batasi transition width agar tidak melewati bar
+            transition_width = min(
+                int((self.current_health - self.target_health) / self.health_ratio),
+                self.health_bar_length - health_bar_width
+            )
             transition_color = (255, 255, 0)
         elif self.current_health < self.target_health:
             self.current_health = min(self.target_health, self.current_health + 1)
             transition_width = int((self.target_health - self.current_health) / self.health_ratio)
             transition_color = (0, 255, 0)
 
-        # Draw bars
+        # Draw bars dengan width yang sudah dibatasi
         transition_bar = pygame.Rect(x + health_bar_width, y, max(0, transition_width), 15)
         pygame.draw.rect(screen, (255, 0, 0), health_bar)
         pygame.draw.rect(screen, transition_color, transition_bar)
@@ -207,9 +267,12 @@ class AshenKnight(Entity):
         # Update basic attack icon alpha
         target_alpha_basic = 255 if self.attacking else 128
         target_alpha_skill = 255 if self.using_skill else 128
+        target_alpha_ultimate = 255 if self.using_ultimate else 128
+        target_alpha_heal = 255 if self.using_heal else 128
 
-        # Update both icon alphas
-        for skill_type, target in [('basic', target_alpha_basic), ('skill', target_alpha_skill)]:
+        # Update all icon alphas
+        for skill_type, target in [('basic', target_alpha_basic), ('skill', target_alpha_skill), 
+                                 ('ultimate', target_alpha_ultimate), ('heal', target_alpha_heal)]:
             current = self.skill_icons_alpha[skill_type]
             if current < target:
                 self.skill_icons_alpha[skill_type] = min(current + 15, target)
@@ -225,12 +288,30 @@ class AshenKnight(Entity):
         # Draw skill icon
         temp_surface = self.skill_icon.copy()
         temp_surface.set_alpha(self.skill_icons_alpha['skill'])
+        scaled_pos = scale_pos(self.icon_base_x, self.icon_base_y)
+        screen.blit(temp_surface, scaled_pos)
+
+        # Draw ultimate icon  
+        temp_surface = self.ultimate_icon.copy()
+        temp_surface.set_alpha(self.skill_icons_alpha['ultimate'])
         scaled_pos = scale_pos(self.icon_base_x + self.icon_spacing, self.icon_base_y)
         screen.blit(temp_surface, scaled_pos)
 
+        # Draw heal icon (setelah ultimate)
+        temp_surface = self.heal_icon.copy()
+        temp_surface.set_alpha(self.skill_icons_alpha['heal'])
+        scaled_pos = scale_pos(self.icon_base_x + 20 + (self.icon_spacing * 2), self.icon_base_y)
+        screen.blit(temp_surface, scaled_pos)
+        
     def update(self):
         animation_cooldown = 150
         current_time = pygame.time.get_ticks()
+
+        # Add heal timing reset
+        if self.using_heal and current_time - getattr(self, 'heal_time', 0) > 500:  # 500ms duration
+            self.using_heal = False
+            self.skill_icons_alpha['heal'] = 128  # Reset heal icon opacity
+            self.heal_applied = True
 
         # Handle opacity restoration
         if self.is_hit and current_time - self.hit_time >= 250:
@@ -288,6 +369,26 @@ class AshenKnight(Entity):
                     else:
                         self.image = self.animation_list[3][self.frame_index]
                 return
+
+            # Handle ultimate animation
+            if self.action == 4:  # Ultimate animation
+                if not self.ultimate_applied and self.frame_index == 4:  # Apply heal at middle of animation
+                    self.target_health = self.max_health  # Full heal
+                    self.ultimate_applied = True
+                    damage_numbers.append(DamageNumber(
+                        self.rect.x + 60,
+                        self.rect.y,
+                        "FULL HEAL!",
+                        (0, 255, 0),  # Green color
+                        font_size=20,
+                        lifetime=45
+                    ))
+
+                if self.frame_index >= len(self.animation_list[4]):
+                    self.frame_index = 0
+                    self.action = 0
+                    self.using_ultimate = False
+                    return
 
             # Handle attack animation and custom positions
             if self.action == 1:  # Attack animation
@@ -409,13 +510,49 @@ class AshenKnight(Entity):
             return True
         return False
 
+    def use_ultimate(self):
+        if not self.using_ultimate and not self.is_dead and self.current_energy >= self.ultimate_energy_cost:
+            self.using_ultimate = True
+            self.ultimate_applied = False
+            self.action = 4  # Ultimate animation index
+            self.frame_index = 0
+            self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
+            pygame.mixer.Sound.play(ashenknightultimate_sfx)
+            return True
+        return False
+
+    def use_heal(self):
+        if not self.using_heal and not self.is_dead and self.current_energy >= self.heal_energy_cost:
+            self.using_heal = True 
+            self.heal_applied = False  # Changed from True to False
+            self.heal_time = pygame.time.get_ticks()  # Add heal time tracking
+            self.target_energy = max(0, self.target_energy - self.heal_energy_cost)
+            
+            # Apply heal
+            self.target_health = min(self.max_health, self.target_health + self.heal_amount)
+            
+            # Show heal notification
+            damage_numbers.append(DamageNumber(
+                self.rect.x + 140,
+                self.rect.y,
+                f"+{self.heal_amount}",
+                (0, 255, 0),  # Green color
+                font_size=20,
+                lifetime=45
+            ))
+            
+            # Changed from ashenknightskill_sfx to ashenknightheal_sfx
+            pygame.mixer.Sound.play(ashenknightheal_sfx)
+            return True
+        return False
+
     def apply_attack_damage(self):
         # Only apply combo multiplier if player hasn't been hit
         combo_multiplier = 1
         if not self.was_hit:
             combo_multiplier = 1 + (self.combo_count * 0.5)
             
-        base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
+        base_damage = self.max_strength * 2 if random.random() < 0.35 else self.max_strength
         total_damage = int(base_damage * combo_multiplier)
         damage_done = self.attack_target.take_damage(total_damage)
         

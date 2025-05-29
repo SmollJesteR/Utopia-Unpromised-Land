@@ -22,7 +22,7 @@ class DeathSentry(Boss):
         # Set position variables before super().__init__
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=2000, strength=30, potion=3, name="DeathSentry", scale=scale)
+        super().__init__(x, y, max_health=2000, max_strength=30, name="DeathSentry", scale=scale)
         
         self.max_energy = 500  # Changed from 1 to 500
         self.target_energy = self.max_energy
@@ -35,7 +35,7 @@ class DeathSentry(Boss):
         self.attack_applied = False  # Add this line
         self.immunity_turns = 0  # Track how many turns the shield has been active
         self.immunity_hits = 0  # Number of hits the shield can take
-        self.max_immunity_hits = 2  # Maximum number of hits shield can take
+        self.max_immunity_hits = 2 # Maximum hits shield can take
         self.using_skill = False
         self.skill_applied = False
         self.skill_energy_cost = 45
@@ -196,7 +196,7 @@ class DeathSentry(Boss):
             basic_attack_cost = 20
             if not self.attacking and not self.using_skill and not self.using_ultimate:
                 self.attack_target = target
-                health_percent = (self.target_health / self.max_hp) * 100
+                health_percent = (self.target_health / self.max_health) * 100
                 
                 if health_percent < 50 and self.current_energy >= self.ultimate_energy_cost:
                     self.active_skill = 'ultimate'
@@ -219,8 +219,19 @@ class DeathSentry(Boss):
             self.idle_sound_channel.stop()
             self.idle_sound_playing = False
 
-        if self.immunity_hits > 0:
+        if self.immunity_hits > 1:
+            # Remove immunity turns check here since we want shield to stay until max hits taken
             self.immunity_hits -= 1
+            # Add shield break notification when last hit is taken
+            if self.immunity_hits <= 0:
+                damage_numbers.append(DamageNumber(
+                    self.rect.x + 50,
+                    self.rect.y, 
+                    "SHIELD BREAK!",
+                    (255, 0, 0),
+                    font_size=20,
+                    lifetime=60
+                ))
             return 0  # No damage taken while shield active
             
         # Set hit state when actually taking damage
@@ -244,9 +255,9 @@ class DeathSentry(Boss):
             self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
             pygame.mixer.Sound.play(skillboss1_sfx)
             
-            # Reset shield stats when activating
+            # Reset shield stats when activating - change to always give max hits
             self.immunity_hits = self.max_immunity_hits
-            self.immunity_turns = 0  # Reset turn counter when shield is activated
+            self.immunity_turns = 0  # Reset turn counter but don't use it for shield break
             
             if self.player:
                 self.player.should_combo = False
@@ -296,7 +307,7 @@ class DeathSentry(Boss):
 
     def update_health(self):
         """Update health values within bounds"""
-        self.target_health = max(0, min(self.target_health, self.max_hp))
+        self.target_health = max(0, min(self.target_health, self.max_health))
 
     def update_energy(self):
         """Update energy values within bounds"""
@@ -439,7 +450,7 @@ class DeathSentry(Boss):
             if not self.attack_applied and self.frame_index == 4:
                 if hasattr(self, "attack_target"):
                     # Calculate damage amount first
-                    damage_amount = self.strength
+                    damage_amount = self.max_strength
                     # Pass self as attacker
                     damage_dealt = self.attack_target.take_damage(damage_amount, attacker=self)
                     self.last_damage_dealt = (damage_dealt > 0)

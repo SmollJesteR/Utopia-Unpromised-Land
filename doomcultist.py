@@ -20,10 +20,10 @@ class DoomCultist(Boss):
     def __init__(self, x, y, scale, player=None):
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=600, strength=10, potion=3, name="DoomCultist", scale=scale)
+        super().__init__(x, y, max_health=650, max_strength=10, name="DoomCultist", scale=scale)
         
         # Energy system attributes
-        self.max_energy = 300
+        self.max_energy = 250
         self.target_energy = self.max_energy
         self.current_energy = self.max_energy
         self.energy_bar_length = 350
@@ -85,7 +85,7 @@ class DoomCultist(Boss):
         self.skill_applied = False
         self.skill_energy_cost = 30
         self.skill_damage = 25  # Changed from 50 to 25
-        self.skill_chance = 1
+        self.skill_chance = 0.5  # Changed from 1 to 0.5 for 50% chance
 
         # Add ultimate properties
         self.using_ultimate = False
@@ -138,7 +138,7 @@ class DoomCultist(Boss):
         self.last_damage_dealt = False
         if not self.attacking and not self.using_skill and not self.using_ultimate and not self.is_dying and not self.is_dead:
             # Check ultimate first if HP below threshold and have enough energy
-            hp_percent = self.current_health / self.max_hp
+            hp_percent = self.current_health / self.max_health
             if hp_percent <= self.ultimate_hp_threshold and self.current_energy >= self.ultimate_energy_cost:
                 self.action_taken_this_turn = True
                 self.target_energy = max(0, self.target_energy - self.ultimate_energy_cost)
@@ -150,8 +150,9 @@ class DoomCultist(Boss):
                 self.target_energy = max(0, self.target_energy - self.skill_energy_cost)
                 return self.use_skill(target)
                 
-            # Then check basic attack if skill wasn't used
-            if self.current_energy >= self.basic_attack_cost:
+            # Only do basic attack if we haven't used skill or ultimate
+            if self.current_energy >= self.basic_attack_cost and not self.action_taken_this_turn:
+                self.action_taken_this_turn = True
                 # Update turn counter and check for rage turn
                 self.turn_counter += 1
                 self.is_rage_turn = (self.turn_counter % 2 == 0)
@@ -219,8 +220,8 @@ class DoomCultist(Boss):
         
         if damage_dealt > 0:
             new_damage = DamageNumber(
-                900,
-                150,
+                925,
+                100,
                 str(damage_dealt),
                 (255, 255, 255) if self.damage_reduction_active else (255, 0, 0),
                 font_size=20,
@@ -294,21 +295,11 @@ class DoomCultist(Boss):
                     # Apply damage at middle frame
                     if not self.attack_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
-                            actual_strength = self.strength * 2 if self.is_rage_turn else self.strength
+                            actual_strength = self.max_strength * 2 if self.is_rage_turn else self.max_strength
                             if self.attack_target.damage_reduction_active:
                                 actual_strength = 1
                             damage_dealt = self.attack_target.take_damage(actual_strength)
                             self.last_damage_dealt = (damage_dealt > 0)
-                            
-                            # Show damage numbers with proper colors
-                            damage_numbers.append(DamageNumber(
-                                self.attack_target.rect.centerx,
-                                self.attack_target.rect.y - 50,
-                                damage_dealt if damage_dealt > 0 else "Miss!",
-                                (255, 255, 255) if damage_dealt == 1 else (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
-                                font_size=20,
-                                lifetime=30
-                            ))
 
                             # Update player combat state
                             if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
@@ -332,36 +323,28 @@ class DoomCultist(Boss):
                     # Apply skill damage at middle frame
                     if not self.skill_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
-                            if random.random() < self.skill_chance:
-                                actual_damage = 1 if self.attack_target.damage_reduction_active else self.skill_damage
-                                damage_dealt = self.attack_target.take_damage(actual_damage)
-                                self.last_damage_dealt = (damage_dealt > 0)
-                                
-                                damage_numbers.append(DamageNumber(
-                                    self.attack_target.rect.centerx,
-                                    self.attack_target.rect.y - 50,
-                                    damage_dealt if damage_dealt > 0 else "Miss!",
-                                    (255, 255, 255) if damage_dealt == 1 else (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
-                                    font_size=20,
-                                    lifetime=30
-                                ))
+                            # Check if target has damage reduction before applying it
+                            has_reduction = (hasattr(self.attack_target, 'damage_reduction_active') and 
+                                          self.attack_target.damage_reduction_active)
+                            actual_damage = 1 if has_reduction else self.skill_damage
+                            damage_dealt = self.attack_target.take_damage(actual_damage)
+                            self.last_damage_dealt = (damage_dealt > 0)
+                            
+                            damage_numbers.append(DamageNumber(
+                                self.attack_target.rect.centerx,
+                                self.attack_target.rect.y - 50,
+                                str(damage_dealt),
+                                (255, 255, 255) if damage_dealt == 1 else (255, 0, 0),
+                                font_size=20,
+                                lifetime=30
+                            ))
 
-                                # Update player combat state if damage dealt
-                                if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
-                                    if damage_dealt > 0:
-                                        self.attack_target.was_hit = True
-                                        self.attack_target.combo_count = 0
-                                        self.attack_target.should_combo = False
-                            else:
-                                # Show miss if skill fails
-                                damage_numbers.append(DamageNumber(
-                                    self.attack_target.rect.centerx,
-                                    self.attack_target.rect.y - 50,
-                                    "Miss!",
-                                    (255, 255, 255),
-                                    font_size=20,
-                                    lifetime=30
-                                ))
+                            # Update player combat state
+                            if hasattr(self.attack_target, 'entity_type') and self.attack_target.entity_type == "player":
+                                if damage_dealt > 0:
+                                    self.attack_target.was_hit = True
+                                    self.attack_target.combo_count = 0
+                                    self.attack_target.should_combo = False
                         self.skill_applied = True
 
                 self.image = self.animation_list[2][self.frame_index]
