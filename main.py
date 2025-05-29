@@ -3,7 +3,7 @@ from sprites import *
 from config import *
 import sys
 from camera_system import Camera
-
+from handler import run_battle
 
 
 
@@ -90,9 +90,10 @@ class Game:
          # Cek collision dengan enemy
         enemy_hit = pygame.sprite.spritecollideany(self.player, self.enemies)
         if enemy_hit:
+            
             # Pause musik eksplorasi
             pygame.mixer.music.stop()
-            
+            run_battle(Player.playertype,Enemy.enemytype,{random.randint(1, 10),random.randint(1, 10),random.randint(1, 10)})
             # Jalankan mode battle dengan transisi
             #BUATIN REY FUNGSI MAIN BATTLENYA(NAMA FUNGSI ADALAH RUN_BATTLE)
             #run_battle(self.screen)
