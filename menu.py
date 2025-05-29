@@ -2,6 +2,9 @@ import pygame, sys
 from button import Button
 
 pygame.init()
+pygame.mixer.init()
+
+
 
 SCREEN = pygame.display.set_mode((1920, 1080))  
 pygame.display.set_caption("Menu")
@@ -14,15 +17,39 @@ def get_font(size):
 
 def character_story(selected_character):
     running = True
+    
+    # Load dan scale karakter images
+    ashen_img = pygame.image.load("Assets/SplashArt/AW.png")
+    blood_img = pygame.image.load("Assets/SplashArt/BR.png")
+    
+    # Scale images untuk character story (ukuran sesuai dengan rect)
+    TARGET_WIDTH = 280  # Sesuai dengan lebar rect asli
+    TARGET_HEIGHT = 540 # Sesuai dengan tinggi rect asli
+    
+    def scale_image(img, target_w, target_h):
+        aspect = img.get_width() / img.get_height()
+        target_aspect = target_w / target_h
+        if aspect > target_aspect:
+            new_w = target_w
+            new_h = int(target_w / aspect)
+        else:
+            new_h = target_h
+            new_w = int(target_h * aspect)
+        return pygame.transform.scale(img, (new_w, new_h))
+    
+    ashen_img = scale_image(ashen_img, TARGET_WIDTH, TARGET_HEIGHT)
+    blood_img = scale_image(blood_img, TARGET_WIDTH, TARGET_HEIGHT)
 
     if selected_character == 1:
         title = "Ashen Warrior"
         desc = "Ashen Warrior adalah penjaga biru yang setia,\nberjuang demi keadilan dan kedamaian di Utopia."
         char_color = (120, 200, 255)
+        char_img = ashen_img
     else:
         title = "Blood Ripper"
-        desc = "Blood Ripper adalah pendekar merah yang kejam,\nmenebar teror demi ambisi dan kekuatan."
+        desc = "Blood Reaper adalah pendekar merah yang kejam,\nmenebar teror demi ambisi dan kekuatan."
         char_color = (255, 100, 100)
+        char_img = blood_img
 
     while running:
         SCREEN.blit(BG, (0, 0))
@@ -36,9 +63,10 @@ def character_story(selected_character):
         title_text = name_font.render(title, True, "White")
         title_rect = title_text.get_rect(center=(char_rect.centerx, char_rect.top - gap))
         SCREEN.blit(title_text, title_rect)
-        pygame.draw.rect(SCREEN, char_color, char_rect, border_radius=50)
-
         
+        # Hapus pygame.draw.rect dan langsung tampilkan gambar
+        SCREEN.blit(char_img, (char_rect.x, char_rect.y))
+
         desc_width = 600
         desc_font = get_font(18)
         desc_lines = []
@@ -95,6 +123,29 @@ def character_story(selected_character):
         pygame.display.update()
 
 def play():
+    # Load character images
+    ashen_img = pygame.image.load("Assets/SplashArt/AW.png")
+    blood_img = pygame.image.load("Assets/SplashArt/BR.png")
+    
+    # Target size for character images - ukuran lebih besar
+    TARGET_WIDTH = 240  # Sesuai dengan ukuran rect
+    TARGET_HEIGHT = 420 # Sesuai dengan ukuran rect
+    
+    # Scale images while maintaining aspect ratio
+    def scale_image(img, target_w, target_h):
+        aspect = img.get_width() / img.get_height()
+        target_aspect = target_w / target_h
+        if aspect > target_aspect:
+            new_w = target_w
+            new_h = int(target_w / aspect)
+        else:
+            new_h = target_h
+            new_w = int(target_h * aspect)
+        return pygame.transform.scale(img, (new_w, new_h))
+    
+    ashen_img = scale_image(ashen_img, TARGET_WIDTH, TARGET_HEIGHT)
+    blood_img = scale_image(blood_img, TARGET_WIDTH, TARGET_HEIGHT)
+    
     selected_character = 1  
     last_click_time = 0
     click_interval = 400 
@@ -109,13 +160,16 @@ def play():
         SCREEN.blit(BG, (0, 0))
 
         PLAY_TEXT = get_font(45).render("Select Your Character", True, "White")
-        PLAY_RECT = PLAY_TEXT.get_rect(center=(960, 200)) 
+        PLAY_RECT = PLAY_TEXT.get_rect(center=(960, 250)) 
         SCREEN.blit(PLAY_TEXT, PLAY_RECT)
 
+        # Draw character boxes - hapus warna background
         left_rect = pygame.Rect(560, 300, 240, 420)
         right_rect = pygame.Rect(1120, 300, 240, 420)
-        pygame.draw.rect(SCREEN, (120, 200, 255) if selected_character == 1 else (180, 180, 180), left_rect, border_radius=30)
-        pygame.draw.rect(SCREEN, (255, 200, 120) if selected_character == 2 else (180, 180, 180), right_rect, border_radius=30)
+
+        # Draw character images centered in rectangles
+        SCREEN.blit(ashen_img, (left_rect.centerx - ashen_img.get_width()//2, left_rect.centery - ashen_img.get_height()//2))
+        SCREEN.blit(blood_img, (right_rect.centerx - blood_img.get_width()//2, right_rect.centery - blood_img.get_height()//2))
 
         name_box_height = 60
         name_box_gap = 60
@@ -125,7 +179,7 @@ def play():
 
         char_font = get_font(32)
         char1_text = char_font.render("Ashen Warrior", True, "White")
-        char2_text = char_font.render("Blood Ripper", True, "White")
+        char2_text = char_font.render("Blood Reaper", True, "White")
         SCREEN.blit(char1_text, (left_name_box.centerx - char1_text.get_width() // 2, left_name_box.centery - char1_text.get_height() // 2))
         SCREEN.blit(char2_text, (right_name_box.centerx - char2_text.get_width() // 2, right_name_box.centery - char2_text.get_height() // 2))
 
@@ -169,6 +223,7 @@ def play():
         pygame.display.update()
     
 def options():
+    # No need to stop music here since we want it to continue in menu sections
     while True:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
 
@@ -190,11 +245,17 @@ def options():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if OPTIONS_BACK.checkForInput(OPTIONS_MOUSE_POS):
-                    main_menu()
+                    main_menu(replay_music=False)  # Don't replay when returning to menu
 
         pygame.display.update()
 
-def main_menu():
+def main_menu(replay_music=True):
+    # Only load and play music if it's the first time or replay is requested
+    if replay_music:
+        pygame.mixer.music.load("Assets/Music/MainMenu/MM.wav")
+        pygame.mixer.music.play(-1)  # -1 means loop indefinitely
+        pygame.mixer.music.set_volume(0.5)  # Set volume to 50%
+
     selected_menu = 0 
     menu_buttons = ["PLAY", "OPTIONS", "QUIT"]
     button_positions = [425, 625, 825]
@@ -203,7 +264,7 @@ def main_menu():
 
         MENU_MOUSE_POS = pygame.mouse.get_pos()
 
-        MENU_TEXT = get_font(100).render("MAIN MENU", True, "#b68f40")
+        MENU_TEXT = get_font(100).render("", True, "#b68f40")
         MENU_RECT = MENU_TEXT.get_rect(center=(960, 230))  
         SCREEN.blit(MENU_TEXT, MENU_RECT)
 
