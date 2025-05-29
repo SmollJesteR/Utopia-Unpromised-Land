@@ -63,6 +63,20 @@ def get_font(size):
     scaled_size = max(1, int(size * SCALE_FACTOR))
     return pygame.font.Font("Assets/Font/PressStart2P-Regular.ttf", scaled_size)
 
+# ========== LOAD SOUND ==========
+CLICK_SOUND = pygame.mixer.Sound("Assets/SFX/click_sound1.wav")  # Ganti path sesuai file Anda
+
+sound_enabled = True
+
+def play_click_sound():
+    if sound_enabled:
+        CLICK_SOUND.play()
+
+def start(selected_character):
+    play_click_sound()
+    import main  # Pastikan main.py ada di folder yang sama
+    main.run(selected_character)  # Pastikan ada fungsi run(selected_character) di main.py
+
 def character_story(selected_character):
     running = True
     
@@ -105,10 +119,10 @@ def character_story(selected_character):
         # Blit background dengan offset
         SCREEN.blit(BG, (OFFSET_X, OFFSET_Y))
 
-        # Scale koordinat dan ukuran
-        screen_center_x = SCREEN_WIDTH // 2
-        char_rect_x, char_rect_y = scale_pos(screen_center_x - 470, 320)
+        # Center character box di tengah layar
         char_rect_w, char_rect_h = scale_size(280, 540)
+        char_rect_x = (SCREEN_WIDTH - char_rect_w) // 3  # Center horizontal
+        char_rect_y = int(320 * SCALE_FACTOR)  # Scale vertical position
         char_rect = pygame.Rect(char_rect_x + OFFSET_X, char_rect_y + OFFSET_Y, char_rect_w, char_rect_h)
 
         name_font = get_font(48)
@@ -138,7 +152,10 @@ def character_story(selected_character):
         line_spacing = int(38 * SCALE_FACTOR)
         desc_title_gap = int(10 * SCALE_FACTOR)
         desc_y = char_rect.top 
-        desc_x = char_rect.right + int(180 * SCALE_FACTOR)
+        
+        # Center deskripsi di sebelah kanan character, dengan spacing yang proporsional
+        desc_spacing = int(60 * SCALE_FACTOR)  # Jarak antara char dan deskripsi
+        desc_x = char_rect.right + desc_spacing
 
         for i, line in enumerate(desc_lines):
             desc_text = desc_font.render(line.strip(), True, "White")
@@ -149,6 +166,11 @@ def character_story(selected_character):
         rect_gap = int(40 * SCALE_FACTOR)
         perk_rect_y = desc_y + len(desc_lines) * line_spacing + rect_gap
         perk_rect_width = int(500 * SCALE_FACTOR)
+        
+        # Pastikan perk rect tidak keluar dari layar
+        max_perk_width = (SCREEN_WIDTH + OFFSET_X) - desc_x - int(20 * SCALE_FACTOR)  # 20px margin
+        perk_rect_width = min(perk_rect_width, max_perk_width)
+        
         perk_rect = pygame.Rect(
             desc_x,
             perk_rect_y,
@@ -158,11 +180,33 @@ def character_story(selected_character):
         border_radius = int(18 * SCALE_FACTOR)
         pygame.draw.rect(SCREEN, (200, 200, 80), perk_rect, border_radius=border_radius)
 
-        back_x, back_y = scale_pos(960, 900)
-        BACK_BTN = Button(image=None, pos=(back_x + OFFSET_X, back_y + OFFSET_Y), 
-                          text_input="BACK", font=get_font(28), base_color="White", hovering_color="Green")
+        # Tombol BACK di pojok kiri bawah
+        back_btn_x = OFFSET_X + int(180 * SCALE_FACTOR)  # Margin dari kiri
+        back_btn_y = SCREEN_HEIGHT + OFFSET_Y - int(80 * SCALE_FACTOR)  # Sejajar dengan tombol START di kanan bawah
+        BACK_BTN = Button(
+            image=None,
+            pos=(back_btn_x, back_btn_y),
+            text_input="BACK",
+            font=get_font(28),
+            base_color="White",
+            hovering_color="Green"
+        )
         BACK_BTN.changeColor(pygame.mouse.get_pos())
         BACK_BTN.update(SCREEN)
+
+        # Tombol START di pojok kanan bawah (tetap)
+        start_btn_x = SCREEN_WIDTH + OFFSET_X - int(180 * SCALE_FACTOR)
+        start_btn_y = SCREEN_HEIGHT + OFFSET_Y - int(80 * SCALE_FACTOR)
+        START_BTN = Button(
+            image=None,
+            pos=(start_btn_x, start_btn_y),
+            text_input="START",
+            font=get_font(28),
+            base_color="White",
+            hovering_color="Green"
+        )
+        START_BTN.changeColor(pygame.mouse.get_pos())
+        START_BTN.update(SCREEN)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -170,7 +214,10 @@ def character_story(selected_character):
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if BACK_BTN.checkForInput(pygame.mouse.get_pos()):
+                    play_click_sound()
                     running = False
+                if START_BTN.checkForInput(pygame.mouse.get_pos()):
+                    start(selected_character)  # Panggil main.py
 
         pygame.display.update()
 
@@ -197,16 +244,10 @@ def play():
     ashen_img = scale_image(ashen_img, TARGET_WIDTH, TARGET_HEIGHT)
     blood_img = scale_image(blood_img, TARGET_WIDTH, TARGET_HEIGHT)
     
-    selected_character = 1  
-    last_click_time = 0
-    click_interval = 400 
-    blink = True
-    blink_timer = 0
-    blink_interval = 500  
+    selected_character = 1
 
     while True:
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
-        now = pygame.time.get_ticks()
 
         # Fill dengan warna hitam untuk letterbox/pillarbox
         SCREEN.fill((0, 0, 0))
@@ -244,8 +285,11 @@ def play():
                                     right_rect.bottom + name_box_gap, name_box_width, name_box_height)
 
         char_font = get_font(32)
-        char1_text = char_font.render("Ashen Warrior", True, "White")
-        char2_text = char_font.render("Blood Reaper", True, "White")
+        # Indikator: nama karakter yang terpilih berwarna hijau, yang lain putih
+        char1_color = "Green" if selected_character == 1 else "White"
+        char2_color = "Green" if selected_character == 2 else "White"
+        char1_text = char_font.render("Ashen Warrior", True, char1_color)
+        char2_text = char_font.render("Blood Reaper", True, char2_color)
         SCREEN.blit(char1_text, (left_name_box.centerx - char1_text.get_width() // 2, 
                                 left_name_box.centery - char1_text.get_height() // 2))
         SCREEN.blit(char2_text, (right_name_box.centerx - char2_text.get_width() // 2, 
@@ -254,7 +298,6 @@ def play():
         back_x, back_y = scale_pos(960, 900)
         PLAY_BACK = Button(image=None, pos=(back_x + OFFSET_X, back_y + OFFSET_Y), 
                           text_input="BACK", font=get_font(28), base_color="White", hovering_color="Green")
-
         PLAY_BACK.changeColor(PLAY_MOUSE_POS)
         PLAY_BACK.update(SCREEN)
 
@@ -269,28 +312,23 @@ def play():
                 elif event.key == pygame.K_RIGHT:
                     selected_character = 2
                 elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    play_click_sound()
                     character_story(selected_character)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BACK.checkForInput(PLAY_MOUSE_POS):
+                    play_click_sound()
                     main_menu()
+                # --- Sekali klik langsung masuk ke character_story ---
                 if left_rect.collidepoint(PLAY_MOUSE_POS) or left_name_box.collidepoint(PLAY_MOUSE_POS):
-                    if selected_character == 1 and now - last_click_time < click_interval:
-                        character_story(1)
-                        last_click_time = 0
-                    else:
-                        selected_character = 1
-                        last_click_time = now
+                    play_click_sound()
+                    character_story(1)
                 if right_rect.collidepoint(PLAY_MOUSE_POS) or right_name_box.collidepoint(PLAY_MOUSE_POS):
-                    if selected_character == 2 and now - last_click_time < click_interval:
-                        character_story(2)
-                        last_click_time = 0
-                    else:
-                        selected_character = 2
-                        last_click_time = now
-
+                    play_click_sound()
+                    character_story(2)
         pygame.display.update()
-    
+
 def options():
+    global sound_enabled
     while True:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
 
@@ -301,12 +339,33 @@ def options():
         OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(opt_x + OFFSET_X, opt_y + OFFSET_Y))
         SCREEN.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
-        back_x, back_y = scale_pos(960, 825)
-        OPTIONS_BACK = Button(image=None, pos=(back_x + OFFSET_X, back_y + OFFSET_Y), 
-                             text_input="BACK", font=get_font(75), base_color="Black", hovering_color="Green")
+        # BACK di pojok kiri bawah
+        back_x, back_y = scale_pos(60, 1020)  # 60, 1020 agar tidak terlalu mepet sudut
+        OPTIONS_BACK = Button(
+            image=None,
+            pos=(back_x, back_y),  # Jangan tambahkan OFFSET_X/OFFSET_Y di sini
+            text_input="BACK",
+            font=get_font(50),
+            base_color="Black",
+            hovering_color="Green"
+        )
+
+        # Tombol toggle sound
+        sound_status = "ON" if sound_enabled else "OFF"
+        sound_btn_x, sound_btn_y = scale_pos(960, 600)
+        SOUND_BTN = Button(
+            image=None,
+            pos=(sound_btn_x + OFFSET_X, sound_btn_y + OFFSET_Y),
+            text_input=f"SOUND: {sound_status}",
+            font=get_font(50),
+            base_color="Black",
+            hovering_color="Green"
+        )
 
         OPTIONS_BACK.changeColor(OPTIONS_MOUSE_POS)
         OPTIONS_BACK.update(SCREEN)
+        SOUND_BTN.changeColor(OPTIONS_MOUSE_POS)
+        SOUND_BTN.update(SCREEN)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -314,7 +373,12 @@ def options():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if OPTIONS_BACK.checkForInput(OPTIONS_MOUSE_POS):
+                    play_click_sound()
                     main_menu(replay_music=False)
+                if SOUND_BTN.checkForInput(OPTIONS_MOUSE_POS):
+                    sound_enabled = not sound_enabled
+                    pygame.mixer.music.set_volume(0.5 if sound_enabled else 0)
+                    play_click_sound()
 
         pygame.display.update()
 
@@ -396,6 +460,7 @@ def main_menu(replay_music=True):
                 elif event.key == pygame.K_DOWN:
                     selected_menu = (selected_menu + 1) % 3
                 elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    play_click_sound()
                     if selected_menu == 0:
                         play()
                     elif selected_menu == 1:
@@ -405,14 +470,16 @@ def main_menu(replay_music=True):
                         sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    play_click_sound()
                     play()
                 if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    play_click_sound()
                     options()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    play_click_sound()
                     pygame.quit()
                     sys.exit()
 
         pygame.display.update()
-
 
 main_menu()
