@@ -7,7 +7,7 @@ death_sfx = {
     "DeathSentry": pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 }
 
-class Entity():
+class Player():
     def __init__(self, x, y, max_health, max_strength, name, scale, skip_animation=False):
         self.name = name
         self.max_health = max_health
@@ -44,7 +44,7 @@ class Entity():
         self.rect.center = (x, y)
         self.attacking = False
         self.attack_applied = False
-        self.entity_type = "entity"
+        self.player_type = "player"
         self.immunity_turns = 0
         self.alpha = 255
         self.hit_time = 0
@@ -55,7 +55,7 @@ class Entity():
         self.can_combo = False
 
     def load_animations(self, scale):
-        """Load animations for the entity."""
+        """Load animations for the player."""
         temp_list = []
         for i in range(8 if self.name == "BloodReaper" else 9):
             img = pygame.image.load(f'img/{self.name}/Idle/{i+1}.png')
@@ -99,7 +99,7 @@ class Entity():
             self.action = 2
             self.frame_index = 0
             self.original_y = self.rect.y
-            # Play death sound based on entity type
+            # Play death sound based on player type
             if self.name in death_sfx:
                 pygame.mixer.Sound.play(death_sfx[self.name])
             return

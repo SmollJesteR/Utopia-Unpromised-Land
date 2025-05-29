@@ -1,6 +1,6 @@
 import pygame
 import random
-from entity import Entity
+from player import Player
 from game_data import screen, font_ui, damage_numbers, DamageNumber
 # Import at top level to avoid circular import
 from typing import TYPE_CHECKING
@@ -14,7 +14,7 @@ pygame.mixer.init()
 boss1_sfx = pygame.mixer.Sound('Assets/SFX/BA_DS.wav')
 deathboss1_sfx = pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 
-class Boss(Entity):
+class Boss(Player):
     def __init__(self, x, y, max_health, max_strength, name, scale, skip_animation=False):
         super().__init__(x, y, max_health, max_strength, name, scale, skip_animation=skip_animation)
         self.entity_type = "boss"
@@ -190,31 +190,25 @@ class Boss(Entity):
         transition_width = 0
         transition_color = (255, 0, 0)
 
-        # Character name
-        name_text = font_ui.render(self.name.replace("_", " "), True, (255, 255, 255))
-        name_rect = name_text.get_rect(center=(x + self.health_bar_length // 2, y - 25))
-        screen.blit(name_text, name_rect)
-
         # Calculate health bar width first
         health_bar_width = int(max(0, self.current_health / self.health_ratio))
         health_bar = pygame.Rect(x, y, health_bar_width, 15)
 
-        # Health bar transition 
-        if self.current_health > self.target_health:  # Taking damage
-            # Calculate speed based on total health difference and 0.5 second duration
+        if self.current_health > self.target_health:
             health_diff = self.current_health - self.target_health
-            transition_step = (health_diff / 20)  # 30 frames = 0.5 second at 60fps
-            self.current_health = max(self.target_health, 
-                                    self.current_health - transition_step)
-            transition_width = int((self.current_health - self.target_health) / self.health_ratio)
+            transition_step = (health_diff / 20)
+            self.current_health = max(self.target_health, self.current_health - transition_step)
+            # Batasi transition width
+            transition_width = min(
+                int((self.current_health - self.target_health) / self.health_ratio),
+                self.health_bar_length - health_bar_width
+            )
             transition_color = (255, 255, 0)
-            
-        elif self.current_health < self.target_health:  # Healing
+        elif self.current_health < self.target_health:
             self.current_health = min(self.target_health, self.current_health + 1)
             transition_width = int((self.target_health - self.current_health) / self.health_ratio)
             transition_color = (0, 255, 0)
 
-        # Create transition bar with clamped width
         transition_bar = pygame.Rect(x + health_bar_width, y, max(0, transition_width), 15)
         
         # Draw the bars
@@ -226,21 +220,31 @@ class Boss(Entity):
         transition_color = (200, 200, 0)
         transition_width = 0
 
+        # Calculate energy bar width first
+        energy_bar_width = int(self.current_energy / self.energy_ratio)
+        energy_bar = pygame.Rect(x, y, energy_bar_width, 15)
+
         if self.current_energy < self.target_energy:
             self.current_energy += self.energy_change_speed
             if self.current_energy > self.target_energy:
                 self.current_energy = self.target_energy
-            transition_width = int((self.target_energy - self.current_energy) / self.energy_ratio)
+            # Batasi transition width
+            transition_width = min(
+                int((self.target_energy - self.current_energy) / self.energy_ratio),
+                self.energy_bar_length - energy_bar_width
+            )
             transition_color = (200, 200, 0)
         elif self.current_energy > self.target_energy:
             self.current_energy -= self.energy_change_speed
             if self.current_energy < self.target_energy:
                 self.current_energy = self.target_energy
-            transition_width = int((self.current_energy - self.target_energy) / self.energy_ratio)
+            # Batasi transition width
+            transition_width = min(
+                int((self.current_energy - self.target_energy) / self.energy_ratio),
+                self.energy_bar_length - energy_bar_width
+            )
             transition_color = (255, 255, 0)
 
-        energy_bar_width = int(self.current_energy / self.energy_ratio)
-        energy_bar = pygame.Rect(x, y, energy_bar_width, 15)
         transition_bar = pygame.Rect(x + energy_bar_width, y, transition_width, 15)
 
         pygame.draw.rect(screen, (255, 255, 0), energy_bar)

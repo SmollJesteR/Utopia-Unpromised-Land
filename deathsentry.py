@@ -163,6 +163,7 @@ class DeathSentry(Boss):
         self.idle_sound_playing = False
         self.idle_sound_channel = None
 
+        self.entity_type = "midboss"
         self.player = player  # Store player reference
         self.load_animations(scale)  # Load animations after storing player reference
 

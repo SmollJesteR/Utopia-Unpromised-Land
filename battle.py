@@ -1,6 +1,6 @@
 import pygame
 import random
-from entity import Entity
+from player import Player
 from boss import Boss
 from deathsentry import DeathSentry
 from bloodreaper import BloodReaper
@@ -18,8 +18,8 @@ pygame.mixer.init()
 
 # Add tree stat variables
 TREE_STAT_STRENGTH = 0  # 0 = base (10/60), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
-TREE_STAT_ENERGY = 0    # 0 = base (100/300), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1  
-TREE_STAT_HEALTH = -100    # 0 = base (100/120), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
+TREE_STAT_ENERGY = -3    # 0 = base (100/300), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1  
+TREE_STAT_HEALTH = 0    # 0 = base (100/120), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
 
 bgm_list = [
     'Assets/Music/Battle/B1.wav',
@@ -127,7 +127,7 @@ def draw_panel():
     screen.blit(scaled_surface, (padding_x, padding_y))
 
 # Change player character selection (add this near BloodReaper initialization)
-PLAYER_TYPE = 1 # 1 for BloodReaper, 2 for AshenKnight
+PLAYER_TYPE = 2 # 1 for BloodReaper, 2 for AshenKnight
 
 if PLAYER_TYPE == 1:
     player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), 

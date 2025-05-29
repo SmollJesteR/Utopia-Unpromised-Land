@@ -32,7 +32,7 @@ class Medusa(Boss):
         # Basic attributes
         self.player = player
         self.original_player_strength = None  # Add this to store original strength
-        self.entity_type = "boss"
+        self.entity_type = "smallboss"
         self.is_dying = False
         self.is_dead = False
         self.attacking = False

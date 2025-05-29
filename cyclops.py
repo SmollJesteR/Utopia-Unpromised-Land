@@ -30,7 +30,7 @@ class Cyclops(Boss):
 
         # Basic attributes
         self.player = player
-        self.entity_type = "boss"
+        self.entity_type = "smallboss"
         self.is_dying = False
         self.is_dead = False
         self.attacking = False

@@ -1,6 +1,6 @@
 import pygame
 import random
-from entity import Entity
+from player import Player
 from deathsentry import DeathSentry
 from baphomet import Baphomet
 from cyclops import Cyclops
@@ -26,7 +26,7 @@ ashenknightshieldhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_SHIELD_AK.wav')  # 
 ashenknightultimate_sfx = pygame.mixer.Sound('Assets/SFX/Ultimate_AK.wav')  # Add ultimate sound here
 ashenknightheal_sfx = pygame.mixer.Sound('Assets/SFX/Heal_AK.wav')  # Add heal sound here
 
-class AshenKnight(Entity):
+class AshenKnight(Player):
     def __init__(self, x, y, scale, strength_level=0, energy_level=0, health_level=0):
         self.pos_x = x
         self.pos_y = y
@@ -195,7 +195,7 @@ class AshenKnight(Entity):
         }
 
     def draw(self):
-        """Draw the entity's current image to the screen with opacity"""
+        """Draw the player's current image to the screen with opacity"""
         temp_surface = self.image.copy()
         temp_surface.fill((255, 255, 255, self.alpha), special_flags=pygame.BLEND_RGBA_MULT)
         screen.blit(temp_surface, self.rect)
@@ -238,22 +238,32 @@ class AshenKnight(Entity):
     def draw_energy_bar_panel(self, x, y):
         transition_color = (200, 200, 0)
         transition_width = 0
+        
+        # Calculate energy bar width first
+        energy_bar_width = int(self.current_energy / self.energy_ratio)
+        energy_bar = pygame.Rect(x, y, energy_bar_width, 15)
 
         if self.current_energy < self.target_energy:
             self.current_energy += self.energy_change_speed
             if self.current_energy > self.target_energy:
                 self.current_energy = self.target_energy
-            transition_width = int((self.target_energy - self.current_energy) / self.energy_ratio)
+            # Batasi transition width agar tidak melewati bar
+            transition_width = min(
+                int((self.target_energy - self.current_energy) / self.energy_ratio),
+                self.energy_bar_length - energy_bar_width
+            )
             transition_color = (200, 200, 0)
         elif self.current_energy > self.target_energy:
             self.current_energy -= self.energy_change_speed
             if self.current_energy < self.target_energy:
                 self.current_energy = self.target_energy
-            transition_width = int((self.current_energy - self.target_energy) / self.energy_ratio)
+            # Batasi transition width agar tidak melewati bar
+            transition_width = min(
+                int((self.current_energy - self.target_energy) / self.energy_ratio),
+                self.energy_bar_length - energy_bar_width
+            )
             transition_color = (255, 255, 0)
 
-        energy_bar_width = int(self.current_energy / self.energy_ratio)
-        energy_bar = pygame.Rect(x, y, energy_bar_width, 15)
         transition_bar = pygame.Rect(x + energy_bar_width, y, transition_width, 15)
 
         pygame.draw.rect(screen, (255, 255, 0), energy_bar)
