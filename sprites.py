@@ -15,7 +15,7 @@ class Spritesheet:
 
     
 class Player(pygame.sprite.Sprite):
-    def __init__(self, game, x, y):
+    def __init__(self, game, x, y,tipe):
 
         self.game = game
         self._layer = PLAYER_LAYER
@@ -43,7 +43,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = self.x
         self.rect.y = self.y
         self.tipe = tipe
-        
+    
     def update(self):
         self.movement()
         self.animate()
@@ -168,7 +168,7 @@ class Player(pygame.sprite.Sprite):
                         self.animation_loop = 1
                         
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, game, x, y,type):
+    def __init__(self, game, x, y,tipe):
         self.game = game
         self._layer = ENEMY_LAYER
         self.groups = self.game.enemies ,self.game.all_sprites
