@@ -10,16 +10,16 @@ if TYPE_CHECKING:
 pygame.mixer.init()
 
 # Import sound effects
-bab_sfx = pygame.mixer.Sound('Assets/SFX/BA_B.wav')  # Add Baphomet's basic attack sound
-idleb_sfx = pygame.mixer.Sound('Assets/SFX/Idle_B.wav')  # Baphomet's idle sound
-deathb_sfx = pygame.mixer.Sound('Assets/SFX/Death_B.wav')  # Baphomet's death sound
+baphomet_ba_sfx = pygame.mixer.Sound('Assets/SFX/BA_B.wav')  # Add Baphomet's basic attack sound
+baphomet_idle_sfx = pygame.mixer.Sound('Assets/SFX/Idle_B.wav')  # Baphomet's idle sound
+baphomet_death_sfx = pygame.mixer.Sound('Assets/SFX/Death_B.wav')  # Baphomet's death sound
 
 class Baphomet(Boss):
     def __init__(self, x, y, scale, player=None):
         # Set position before super().__init__
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=1000, strength=50, potion=3, name="Baphomet", scale=scale)
+        super().__init__(x, y, max_health=1500, max_strength=50, name="Baphomet", scale=scale)
         
         # Add energy system attributes
         self.max_energy = 500  # Same as DeathSentry's system
@@ -31,7 +31,7 @@ class Baphomet(Boss):
 
         # Basic attributes
         self.player = player
-        self.entity_type = "boss"
+        self.entity_type = "final_boss"
         self.is_dying = False
         self.is_dead = False
         self.attacking = False
@@ -42,7 +42,7 @@ class Baphomet(Boss):
         self.icon_base_x = 1360  # Changed from 1350 to 1400 to move right
         self.icon_base_y = 870
         self.icon_spacing = 120
-        self.basic_attack_icon = pygame.image.load('img\Baphomet\Skill_icon\BasicAttack_B.png').convert_alpha()
+        self.basic_attack_icon = pygame.image.load('img/Baphomet/Skill_icon/BasicAttack_B.png').convert_alpha()
         self.basic_attack_icon = pygame.transform.scale(self.basic_attack_icon, 
             (int(self.basic_attack_icon.get_width() * ICON_SCALE), 
              int(self.basic_attack_icon.get_height() * ICON_SCALE)))
@@ -58,7 +58,7 @@ class Baphomet(Boss):
         self.load_animations(scale)
 
         # Add idle sound properties
-        self.idle_sound = idleb_sfx
+        self.idle_sound = baphomet_idle_sfx
         self.idle_sound_playing = False
         self.idle_sound_channel = None
 
@@ -90,7 +90,7 @@ class Baphomet(Boss):
 
     def calculate_rage_multiplier(self):
         # Calculate damage multiplier based on missing health percentage
-        health_percent = (self.current_health / self.max_hp) * 100
+        health_percent = (self.current_health / self.max_health) * 100
         # Reduced multiplier to max 1.25x damage at low health (was 2x)
         multiplier = 0.5 + ((100 - health_percent) / 100)  # Changed from /100 to /400
         return multiplier
@@ -110,7 +110,7 @@ class Baphomet(Boss):
                 self.action = 1
                 self.attack_target = target
                 self.target_energy = max(0, self.target_energy - self.basic_attack_cost)
-                pygame.mixer.Sound.play(bab_sfx)
+                pygame.mixer.Sound.play(baphomet_ba_sfx)
                 return True
         return False
 
@@ -163,7 +163,7 @@ class Baphomet(Boss):
             if self.idle_sound_playing and self.idle_sound_channel:
                 self.idle_sound_channel.stop()
                 self.idle_sound_playing = False
-            pygame.mixer.Sound.play(deathb_sfx)
+            pygame.mixer.Sound.play(baphomet_death_sfx)
             return
 
         # Handle death animation
@@ -204,7 +204,7 @@ class Baphomet(Boss):
                 if not self.attack_applied and self.frame_index == 7:
                     if hasattr(self, "attack_target"):
                         # Calculate base damage with rage multiplier
-                        base_damage = int(self.strength * self.calculate_rage_multiplier())
+                        base_damage = int(self.max_strength * self.calculate_rage_multiplier())
                         # Apply damage and get actual damage dealt back
                         damage_dealt = self.attack_target.take_damage(base_damage)
                         self.last_damage_dealt = (damage_dealt > 0)

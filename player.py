@@ -7,23 +7,22 @@ death_sfx = {
     "DeathSentry": pygame.mixer.Sound('Assets/SFX/Death_DS.wav')
 }
 
-class Entity():
-    def __init__(self, x, y, max_hp, strength, potion, name, scale, skip_animation=False):
+class Player():
+    def __init__(self, x, y, max_health, max_strength, name, scale, skip_animation=False):
         self.name = name
-        self.max_hp = max_hp
-        self.hp = max_hp
-        self.strength = strength
-        self.potion = potion
+        self.max_health = max_health
+        self.hp = max_health
+        self.max_strength = max_strength
         self.alive = True
         self.animation_list = []
         self.action = 0
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
 
-        self.target_health = max_hp
-        self.current_health = max_hp
+        self.target_health = max_health
+        self.current_health = max_health
         self.health_bar_length = 350  
-        self.health_ratio = self.max_hp / self.health_bar_length
+        self.health_ratio = self.max_health / self.health_bar_length
         self.health_change_speed = 0.2
 
         self.max_energy = 100
@@ -45,7 +44,7 @@ class Entity():
         self.rect.center = (x, y)
         self.attacking = False
         self.attack_applied = False
-        self.entity_type = "entity"
+        self.player_type = "player"
         self.immunity_turns = 0
         self.alpha = 255
         self.hit_time = 0
@@ -56,7 +55,7 @@ class Entity():
         self.can_combo = False
 
     def load_animations(self, scale):
-        """Load animations for the entity."""
+        """Load animations for the player."""
         temp_list = []
         for i in range(8 if self.name == "BloodReaper" else 9):
             img = pygame.image.load(f'img/{self.name}/Idle/{i+1}.png')
@@ -65,7 +64,7 @@ class Entity():
         self.animation_list.append(temp_list)
 
     def update_health(self):
-        self.target_health = max(0, min(self.target_health, self.max_hp))
+        self.target_health = max(0, min(self.target_health, self.max_health))
 
     def update_energy(self):
         self.target_energy = max(0, min(self.target_energy, self.max_energy))
@@ -100,7 +99,7 @@ class Entity():
             self.action = 2
             self.frame_index = 0
             self.original_y = self.rect.y
-            # Play death sound based on entity type
+            # Play death sound based on player type
             if self.name in death_sfx:
                 pygame.mixer.Sound.play(death_sfx[self.name])
             return

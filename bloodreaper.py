@@ -1,6 +1,6 @@
 import pygame
 import random
-from entity import Entity
+from player import Player
 from deathsentry import DeathSentry
 from baphomet import Baphomet  # Add this import
 from cyclops import Cyclops  # Add this import
@@ -20,25 +20,50 @@ baphemothit_sfx = pygame.mixer.Sound('Assets/SFX/MA_B.wav')  # Add Baphomet's hi
 cyclopshit_sfx = pygame.mixer.Sound('Assets/SFX/MA_C.wav')  # Add Cyclops' hit sound
 cyclopsdodgehit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DODGE_C.wav')  # Add Cyclops' dodge hit sound
 deathsentryhit_sfx = pygame.mixer.Sound('Assets/SFX/MA_DS.wav')  # Add DeathSentry's hit sound
+bloodreaperheal_sfx = pygame.mixer.Sound('Assets/SFX/Heal_BR.wav')  # Add BloodReaper's heal sound
 
 pygame.mixer.init()  # Add this line
 
-class BloodReaper(Entity):
-    def __init__(self, x, y, scale):
-        self.pos_x = x  # Set position before super().__init__
+class BloodReaper(Player):
+    def __init__(self, x, y, scale, strength_level=0, energy_level=0, health_level=0):
+        # Store position attributes first
+        self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=100, strength=75, potion=3, name="BloodReaper", scale=scale)
-        self.entity_type = "player"
         
-        # Update max energy and related attributes
-        self.max_energy = 100  # Customize max energy here
-        self.target_energy = self.max_energy  # Set initial target to max
-        self.current_energy = self.max_energy  # Set initial current to max
-        self.energy_bar_length = 350  # Same visual bar length as others
-        self.energy_ratio = self.max_energy / self.energy_bar_length  # Calculate ratio
+        # Calculate stat bonuses based on tree levels
+        base_strength = 10
+        bonus_strength = strength_level * 10
+        self.total_strength = max(1, base_strength + bonus_strength)
+        base_health = 100
+        bonus_health = health_level * 10
+        total_health = max(1, base_health + bonus_health)
+        base_energy = 100
+        bonus_energy = energy_level * 10
+        total_energy = max(1, base_energy + bonus_energy)
+
+        # Initialize with combined base + bonus stats
+        super().__init__(x, y, 
+                        max_health=total_health,  # Use total health with minimum 1
+                        max_strength=self.total_strength,
+                        name="BloodReaper", 
+                        scale=scale)
+        
+        # Initialize damage multiplier system 
+        self.base_strength = self.total_strength
+        self.max_strength = self.base_strength
+        self.damage_multiplier = 1
+        self.has_attacked = False  # Add this line to fix the error
+        
+        # Store capped energy
+        self.max_energy = total_energy
+        self.target_energy = self.max_energy
+        self.current_energy = self.max_energy
+        self.energy_bar_length = 350
+        self.energy_ratio = self.max_energy / self.energy_bar_length
         self.energy_change_speed = 1  # Add energy change speed
 
         # Reset combo system
+        self.entity_type = "player"        
         self.combo_count = 0
         self.was_hit = True
         self.last_hit_successful = False
@@ -55,15 +80,33 @@ class BloodReaper(Entity):
         
         # Add basic attack icon with larger scale
         ICON_SCALE = 0.1  # Changed from 0.1 to 0.25 for larger icon
-        self.icon_base_x = 450  # Position for player's icon
-        self.icon_base_y = 870  # Same Y as boss icons
+        # Icon positions setup
+        self.icon_base_x = 450  # Ubah posisi dasar ke kiri
+        self.icon_base_y = 870  # Y tetap sama
         self.icon_spacing = 120
         self.basic_attack_icon = pygame.image.load('img/BloodReaper/Skill_icon/BasicAttack_BR.png').convert_alpha()
         self.basic_attack_icon = pygame.transform.scale(self.basic_attack_icon, 
             (int(self.basic_attack_icon.get_width() * ICON_SCALE), 
              int(self.basic_attack_icon.get_height() * ICON_SCALE)))
-        self.skill_icons_alpha = {'basic': 128}
+        
+        # Initialize skill_icons_alpha with both 'basic' and 'heal' keys
+        self.skill_icons_alpha = {'basic': 128, 'heal': 128}  # Tambahkan kedua kunci dari awal
 
+        # Add heal skill properties
+        self.using_heal = False
+        self.heal_applied = False 
+        self.heal_amount = 30
+        self.heal_energy_cost = 20
+
+        self.heal_icon = pygame.image.load('img/BloodReaper/Skill_icon/Heal_BR.png').convert_alpha()
+        self.heal_icon = pygame.transform.scale(self.heal_icon,
+            (int(self.heal_icon.get_width() * ICON_SCALE),
+             int(self.heal_icon.get_height() * ICON_SCALE)))
+
+        # Add damage reduction attributes (set to False by default)
+        self.damage_reduction_active = False
+        self.damage_reduction_turns = 0
+        
         self.load_animations(scale)  # Call load_animations after all attributes are set
 
     def load_animations(self, scale):
@@ -85,7 +128,7 @@ class BloodReaper(Entity):
         # Set initial image and rect
         self.image = self.animation_list[0][0]
         self.rect = self.image.get_rect()
-        self.rect.center = (self.pos_x, self.pos_y)
+        self.rect.center = (self.pos_x, self.pos_y)  # Now pos_x and pos_y are available
 
     def attack(self, target):
         # Check if target is dead before allowing attack
@@ -110,7 +153,7 @@ class BloodReaper(Entity):
             pygame.mixer.Sound.play(attack_sfx)
 
     def draw(self):
-        """Draw the entity's current image to the screen with opacity"""
+        """Draw the player's current image to the screen with opacity"""
         temp_surface = self.image.copy()
         temp_surface.fill((255, 255, 255, self.alpha), special_flags=pygame.BLEND_RGBA_MULT)
         screen.blit(temp_surface, self.rect)
@@ -133,14 +176,18 @@ class BloodReaper(Entity):
             health_diff = self.current_health - self.target_health
             transition_step = (health_diff / 20)
             self.current_health = max(self.target_health, self.current_health - transition_step)
-            transition_width = int((self.current_health - self.target_health) / self.health_ratio)
+            # Batasi transition width agar tidak melewati bar
+            transition_width = min(
+                int((self.current_health - self.target_health) / self.health_ratio),
+                self.health_bar_length - health_bar_width
+            )
             transition_color = (255, 255, 0)
         elif self.current_health < self.target_health:  # Healing
             self.current_health = min(self.target_health, self.current_health + 1)
             transition_width = int((self.target_health - self.current_health) / self.health_ratio)
             transition_color = (0, 255, 0)
 
-        # Create transition bar
+        # Create transition bar with width yang sudah dibatasi
         transition_bar = pygame.Rect(x + health_bar_width, y, max(0, transition_width), 15)
         
         # Draw bars
@@ -179,7 +226,36 @@ class BloodReaper(Entity):
         if not self.was_hit:
             combo_multiplier = 1 + (self.combo_count * 0.5)
             
-        base_damage = self.strength * 2 if random.random() < 0.35 else self.strength
+        # Calculate damage first without multiplier
+        base_damage = self.max_strength
+        damage_total = int(base_damage * combo_multiplier)
+        damage_done = self.attack_target.take_damage(damage_total)
+
+        # Only increase multiplier after confirming damage was dealt
+        if damage_done > 0:
+            if not self.has_attacked:
+                # First hit stays at base damage
+                self.has_attacked = True
+            else:
+                # Double strength for next attack
+                self.max_strength *= 2
+
+        # Only multiply strength after first successful hit
+        if self.has_attacked and damage_done > 0:
+            self.damage_multiplier *= 2
+            self.max_strength = self.base_strength * self.damage_multiplier
+            # Show multiplier notification
+            damage_numbers.append(DamageNumber(
+                self.rect.centerx - 100,
+                self.rect.y - 0,
+                f"STRENGTH X 2!",
+                (255, 165, 0),
+                font_size=20,
+                lifetime=45
+            ))
+        
+        self.has_attacked = True  # Mark first attack as done
+        
         total_damage = int(base_damage * combo_multiplier)
         damage_done = self.attack_target.take_damage(total_damage)
         
@@ -229,7 +305,7 @@ class BloodReaper(Entity):
         
         # Apply lifesteal if damage was dealt
         if damage_done > 0:
-            missing_health = self.max_hp - self.target_health
+            missing_health = self.max_health - self.target_health
             if missing_health > 0:
                 heal_amount = min(int(damage_done * 0.20), missing_health)
                 if heal_amount > 0:
@@ -246,13 +322,23 @@ class BloodReaper(Entity):
         
         self.attack_applied = True
 
-    def take_damage(self, amount):
+    def take_damage(self, amount, attacker=None):  # Add optional attacker parameter
         # Play BloodReaper hit sound first before any other operations
-        pygame.mixer.Sound.play(bloodreaperhit_sfx)  # Moved to top
+        pygame.mixer.Sound.play(bloodreaperhit_sfx)
         
         self.is_hit = True
         self.hit_time = pygame.time.get_ticks()
         self.alpha = 128
+        
+        # Add damage number visualization
+        damage_numbers.append(DamageNumber(
+            self.rect.centerx,
+            self.rect.y - 50,
+            str(amount),
+            (255, 0, 0),  # Red color for damage
+            font_size=20,
+            lifetime=30
+        ))
         
         self.target_health -= amount
         return amount
@@ -260,6 +346,12 @@ class BloodReaper(Entity):
     def update(self):
         animation_cooldown = 150
         current_time = pygame.time.get_ticks()
+
+        # Add heal timing reset
+        if self.using_heal and current_time - getattr(self, 'heal_time', 0) > 500:  # 500ms duration
+            self.using_heal = False
+            self.skill_icons_alpha['heal'] = 128  # Reset heal icon opacity
+            self.heal_applied = True
 
         # Stop idle sound immediately if dying or dead
         if (self.is_dying or self.is_dead) and self.idle_sound_playing:
@@ -350,19 +442,59 @@ class BloodReaper(Entity):
                 self.frame_index < len(self.animation_list[self.action])):
                 self.image = self.animation_list[self.action][self.frame_index]
 
+        # Remove this section since strength updates are handled in apply_attack_damage
+        # The old passive skill update code is removed to avoid duplicate multiplier stacking
+
+        # ...rest of existing code...
+
+    def use_heal(self):
+        if not self.using_heal and not self.is_dead and self.current_energy >= self.heal_energy_cost:
+            self.using_heal = True
+            self.heal_applied = False
+            self.heal_time = pygame.time.get_ticks()  # Track when heal started
+            self.target_energy = max(0, self.target_energy - self.heal_energy_cost)
+            
+            # Apply heal
+            self.target_health = min(self.max_health, self.target_health + self.heal_amount)
+            
+            # Show heal notification
+            damage_numbers.append(DamageNumber(
+                self.rect.x + 100,
+                self.rect.y,
+                f"+{self.heal_amount}",
+                (0, 255, 0),
+                font_size=20,
+                lifetime=45
+            ))
+            
+            pygame.mixer.Sound.play(bloodreaperheal_sfx)  # Changed from bloodreaperhit_sfx
+            return True
+        return False
+
     def draw_skill_icons(self):
         if self.is_dead or self.is_dying:
             return
 
-        target_alpha = 255 if self.attacking else 128
-        current = self.skill_icons_alpha['basic']
-        
-        if current < target_alpha:
-            self.skill_icons_alpha['basic'] = min(current + 15, target_alpha)
-        elif current > target_alpha:
-            self.skill_icons_alpha['basic'] = max(current - 15, target_alpha)
+        # Update icon alphas
+        target_alpha_basic = 255 if self.attacking else 128
+        target_alpha_heal = 255 if self.using_heal else 128  # Add this line
 
+        # Update both alphas
+        for skill_type, target in [('basic', target_alpha_basic), ('heal', target_alpha_heal)]:
+            current = self.skill_icons_alpha[skill_type]
+            if current < target:
+                self.skill_icons_alpha[skill_type] = min(current + 15, target)
+            elif current > target:
+                self.skill_icons_alpha[skill_type] = max(current - 15, target)
+
+        # Draw basic attack icon (paling kiri)
         temp_surface = self.basic_attack_icon.copy()
         temp_surface.set_alpha(self.skill_icons_alpha['basic'])
         scaled_pos = scale_pos(self.icon_base_x, self.icon_base_y)
+        screen.blit(temp_surface, scaled_pos)
+
+        # Draw heal icon (jauh ke kanan)
+        temp_surface = self.heal_icon.copy()
+        temp_surface.set_alpha(self.skill_icons_alpha['heal'])  # Use heal alpha value
+        scaled_pos = scale_pos(self.icon_base_x + 30 + (self.icon_spacing * 2), self.icon_base_y)
         screen.blit(temp_surface, scaled_pos)

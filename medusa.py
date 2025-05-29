@@ -19,7 +19,7 @@ class Medusa(Boss):
     def __init__(self, x, y, scale, player=None):
         self.pos_x = x
         self.pos_y = y
-        super().__init__(x, y, max_hp=800, strength=10, potion=3, name="Medusa", scale=scale)
+        super().__init__(x, y, max_health=800, max_strength=10, name="Medusa", scale=scale)
         
         # Energy system attributes
         self.max_energy = 150
@@ -32,7 +32,7 @@ class Medusa(Boss):
         # Basic attributes
         self.player = player
         self.original_player_strength = None  # Add this to store original strength
-        self.entity_type = "boss"
+        self.entity_type = "smallboss"
         self.is_dying = False
         self.is_dead = False
         self.attacking = False
@@ -105,8 +105,8 @@ class Medusa(Boss):
                 if self.curse_active and self.player:
                     # Store original strength only if not already stored
                     if self.original_player_strength is None:
-                        self.original_player_strength = self.player.strength
-                    self.player.strength = int(self.original_player_strength * 0.5)  # Use original strength for calculation
+                        self.original_player_strength = self.player.max_strength
+                    self.player.max_strength = int(self.original_player_strength * 0.5)  # Use original strength for calculation
                     damage_numbers.append(DamageNumber(
                         self.player.rect.x + 80,
                         self.player.rect.y - 50,
@@ -117,7 +117,7 @@ class Medusa(Boss):
                     ))
                 elif not self.curse_active and self.original_player_strength is not None:
                     # Reset strength when curse ends
-                    self.player.strength = self.original_player_strength
+                    self.player.max_strength = self.original_player_strength
                     self.original_player_strength = None  # Clear stored value
                     damage_numbers.append(DamageNumber(
                         self.player.rect.x + 30,
@@ -224,19 +224,9 @@ class Medusa(Boss):
                     if not self.attack_applied and self.frame_index == 4:
                         if hasattr(self, "attack_target"):
                             # Apply damage and get actual damage dealt back
-                            damage_amount = self.strength
+                            damage_amount = self.max_strength
                             damage_dealt = self.attack_target.take_damage(damage_amount)
                             self.last_damage_dealt = (damage_dealt > 0)
-                            
-                            # Show actual damage dealt in notification
-                            damage_numbers.append(DamageNumber(
-                                self.attack_target.rect.x + 125,
-                                self.attack_target.rect.y - 50,
-                                damage_dealt if damage_dealt > 0 else "Miss!",
-                                (255, 0, 0) if damage_dealt > 0 else (255, 255, 255),
-                                font_size=20,
-                                lifetime=30
-                            ))
                             
                             if damage_dealt > 0:
                                 print(f"Enemy dealt {damage_dealt} damage!")
@@ -265,7 +255,7 @@ class Medusa(Boss):
         if self.curse_active and hasattr(self.player, 'original_strength'):
             # Reset player's strength back to original value on next turn
             if self.turn_counter % 2 == 1:  # On odd turns (after curse turn)
-                self.player.strength = self.player.original_strength
+                self.player.max_strength = self.player.original_strength
                 delattr(self.player, 'original_strength')
                 damage_numbers.append(DamageNumber(
                     self.player.rect.x + 70,
