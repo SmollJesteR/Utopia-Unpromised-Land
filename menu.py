@@ -107,7 +107,7 @@ def character_story(selected_character):
         char_color = (120, 200, 255)
         char_img = ashen_img
     else:
-        title = "Blood Ripper"
+        title = "Blood Reaper"
         desc = "Blood Reaper adalah pendekar merah yang kejam,\nmenebar teror demi ambisi dan kekuatan."
         char_color = (255, 100, 100)
         char_img = blood_img
