@@ -74,6 +74,7 @@ class Game:
             pygame.mixer.music.stop()
             
             # Jalankan mode battle dengan transisi
+            #BUATIN REY FUNGSI MAIN BATTLENYA(NAMA FUNGSI ADALAH RUN_BATTLE)
             #run_battle(self.screen)
 
             # Setelah battle selesai, lanjutkan musik eksplorasi
