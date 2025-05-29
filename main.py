@@ -4,6 +4,7 @@ from config import *
 import sys
 from camera_system import Camera
 from handler import run_battle
+import random
 
 
 
@@ -33,7 +34,7 @@ class Game:
                 if tile == 'B':
                     Block(self, j, i)
                 if tile == 'P':
-                    Player(self, j, i)
+                    Player(self, j, i,1)
                 if tile == 'E':
                     Enemy(self, j, i,1)
 
