@@ -469,7 +469,7 @@ class BloodReaper(Player):
             
             # Show heal notification
             damage_numbers.append(DamageNumber(
-                self.rect.x + 60,
+                self.rect.x + 100,
                 self.rect.y,
                 f"+{self.heal_amount}",
                 (0, 255, 0),

@@ -18,7 +18,7 @@ pygame.mixer.init()
 
 # Add tree stat variables
 TREE_STAT_STRENGTH = 0  # 0 = base (10/60), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
-TREE_STAT_ENERGY = -3    # 0 = base (100/300), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1  
+TREE_STAT_ENERGY = 0    # 0 = base (100/300), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1  
 TREE_STAT_HEALTH = 0    # 0 = base (100/120), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
 
 bgm_list = [
@@ -105,9 +105,9 @@ attack_icon_rect = pygame.Rect(350, 820, 64, 64)  # Original coordinates and siz
 def draw_background():
     # Draw to game surface first at original resolution
     if BOSS_TYPE == 1:  # DeathSentry
-        game_surface.blit(background_winter_img, (0, 0))
-    elif BOSS_TYPE == 2:  # Baphomet
         game_surface.blit(background_hell_img, (0, 0))
+    elif BOSS_TYPE == 2:  # Baphomet
+        game_surface.blit(background_winter_img, (0, 0))
     elif BOSS_TYPE == 3:  # Cyclops
         game_surface.blit(background_castle_img, (0, 0))
     elif BOSS_TYPE == 4:
@@ -127,7 +127,7 @@ def draw_panel():
     screen.blit(scaled_surface, (padding_x, padding_y))
 
 # Change player character selection (add this near BloodReaper initialization)
-PLAYER_TYPE = 2 # 1 for BloodReaper, 2 for AshenKnight
+PLAYER_TYPE = 1 # 1 for BloodReaper, 2 for AshenKnight
 
 if PLAYER_TYPE == 1:
     player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), 
@@ -143,15 +143,15 @@ elif PLAYER_TYPE == 2:
                         health_level=TREE_STAT_HEALTH)
 
 # Update boss type selection
-BOSS_TYPE = 2 # Add Medusa as type 5
+BOSS_TYPE = 1 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
-    current_boss = DeathSentry(int(1400 * scale_factor), int(420 * scale_factor), 
-                              scale=8.5 * scale_factor, player=player)
-elif BOSS_TYPE == 2:
-    current_boss = Baphomet(int(1400 * scale_factor), int(120 * scale_factor),
+    current_boss = Baphomet(int(1400 * scale_factor), int(120 * scale_factor), 
                            scale=7 * scale_factor, player=player)
+elif BOSS_TYPE == 2:
+    current_boss = DeathSentry(int(1400 * scale_factor), int(420 * scale_factor),
+                              scale=8.5 * scale_factor, player=player)
 elif BOSS_TYPE == 3:
     current_boss = DoomCultist(int(1100 * scale_factor), int(250 * scale_factor),
                               scale=9 * scale_factor, player=player)                                                         
