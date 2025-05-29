@@ -1,5 +1,6 @@
 import pygame
 import random
+import os
 from player import Player
 from boss import Boss
 from deathsentry import DeathSentry
@@ -16,10 +17,12 @@ from ashenknight import AshenKnight  # Add this import
 pygame.init()
 pygame.mixer.init()
 
-# Add tree stat variables
-TREE_STAT_STRENGTH = 0  # 0 = base (10/60), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
-TREE_STAT_ENERGY = 0    # 0 = base (100/300), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1  
-TREE_STAT_HEALTH = 0    # 0 = base (100/120), + = bonus (ex: 1 = +10), - = penalty (ex: -7 = -70), min value = 1
+# Replace the static assignments with environment variables
+PLAYER_TYPE = int(os.environ.get('HERO_TYPE', 1))
+BOSS_TYPE = int(os.environ.get('BOSS_TYPE', 1))
+TREE_STAT_STRENGTH = int(os.environ.get('TREE_STAT_STRENGTH', 0))
+TREE_STAT_ENERGY = int(os.environ.get('TREE_STAT_ENERGY', 0))
+TREE_STAT_HEALTH = int(os.environ.get('TREE_STAT_HEALTH', 0))
 
 bgm_list = [
     'Assets/Music/Battle/B1.wav',
@@ -127,8 +130,6 @@ def draw_panel():
     screen.blit(scaled_surface, (padding_x, padding_y))
 
 # Change player character selection (add this near BloodReaper initialization)
-PLAYER_TYPE = 1 # 1 for BloodReaper, 2 for AshenKnight
-
 if PLAYER_TYPE == 1:
     player = BloodReaper(int(500 * scale_factor), int(500 * scale_factor), 
                         scale=4.2 * scale_factor, 
@@ -143,7 +144,7 @@ elif PLAYER_TYPE == 2:
                         health_level=TREE_STAT_HEALTH)
 
 # Update boss type selection
-BOSS_TYPE = 1 # Add Medusa as type 5
+# BOSS_TYPE = 1 # Add Medusa as type 5
 
 # Update boss creation
 if BOSS_TYPE == 1:
