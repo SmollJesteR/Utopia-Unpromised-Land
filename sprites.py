@@ -7,11 +7,12 @@ class Spritesheet:
     def __init__(self,file):
         self.sheet = pygame.image.load(file).convert()
         
-    def get_sprite(self,x,y,width,height):
-        sprite = pygame.Surface([width,height])
-        sprite.blit(self.sheet, (0,0), (x, y, width, height))
+    def get_sprite(self, x, y, width, height):
+        sprite = pygame.Surface([width, height])
+        sprite.blit(self.sheet, (0, 0), (x, y, width, height))
         sprite.set_colorkey(BLACK)
-        return sprite
+        return pygame.transform.scale(sprite, (TILESIZE, TILESIZE))
+
     
 class Player(pygame.sprite.Sprite):
     def __init__(self, game, x, y):
@@ -198,7 +199,7 @@ class Floor(pygame.sprite.Sprite):
         self.width = TILESIZE
         self.height = TILESIZE
         
-        self.image = self.game.terrain_spritesheet.get_sprite(64, 352, self.width, self.height)
+        self.image = self.game.tile_spritesheet.get_sprite(0,0,self.width, self.height)
         
         self.rect = self.image.get_rect()
         self.rect.x = self.x
