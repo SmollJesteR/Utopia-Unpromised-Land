@@ -89,11 +89,15 @@ class Game:
 
          # Cek collision dengan enemy
         enemy_hit = pygame.sprite.spritecollideany(self.player, self.enemies)
-        if enemy_hit:
+        if enemy_hit and enemy_hit.alive:
             
             # Pause musik eksplorasi
             pygame.mixer.music.stop()
-            run_battle(Player.playertype,Enemy.enemytype,{random.randint(1, 10),random.randint(1, 10),random.randint(1, 10)})
+            run_battle(self.player.tipe,enemy_hit.tipe,tree_stats={
+            'strength': 0,
+            'energy': 0,
+            'health': 0
+        })
             # Jalankan mode battle dengan transisi
             #BUATIN REY FUNGSI MAIN BATTLENYA(NAMA FUNGSI ADALAH RUN_BATTLE)
             #run_battle(self.screen)
