@@ -334,13 +334,13 @@ def options():
 
         SCREEN.fill("white")
 
-        OPTIONS_TEXT = get_font(45).render("This is the OPTIONS screen.", True, "Black")
+        OPTIONS_TEXT = get_font(45).render("Settings", True, "Black")
         opt_x, opt_y = scale_pos(960, 390)
         OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(opt_x + OFFSET_X, opt_y + OFFSET_Y))
         SCREEN.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
         # BACK di pojok kiri bawah
-        back_x, back_y = scale_pos(60, 1020)  # 60, 1020 agar tidak terlalu mepet sudut
+        back_x, back_y = scale_pos(130, 1020)  # 130, 1020 agar tidak terlalu mepet sudut
         OPTIONS_BACK = Button(
             image=None,
             pos=(back_x, back_y),  # Jangan tambahkan OFFSET_X/OFFSET_Y di sini
