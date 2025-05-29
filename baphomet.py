@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 pygame.mixer.init()
 
 # Import sound effects
-baphomet_ba_sfx_sfx = pygame.mixer.Sound('Assets/SFX/BA_B.wav')  # Add Baphomet's basic attack sound
-baphomet_idle_sfx_sfx = pygame.mixer.Sound('Assets/SFX/Idle_B.wav')  # Baphomet's idle sound
-baphomet_death_sfx_sfx = pygame.mixer.Sound('Assets/SFX/Death_B.wav')  # Baphomet's death sound
+baphomet_ba_sfx = pygame.mixer.Sound('Assets/SFX/BA_B.wav')  # Add Baphomet's basic attack sound
+baphomet_idle_sfx = pygame.mixer.Sound('Assets/SFX/Idle_B.wav')  # Baphomet's idle sound
+baphomet_death_sfx = pygame.mixer.Sound('Assets/SFX/Death_B.wav')  # Baphomet's death sound
 
 class Baphomet(Boss):
     def __init__(self, x, y, scale, player=None):
@@ -58,7 +58,7 @@ class Baphomet(Boss):
         self.load_animations(scale)
 
         # Add idle sound properties
-        self.idle_sound = baphomet_idle_sfx_sfx
+        self.idle_sound = baphomet_idle_sfx
         self.idle_sound_playing = False
         self.idle_sound_channel = None
 
@@ -110,7 +110,7 @@ class Baphomet(Boss):
                 self.action = 1
                 self.attack_target = target
                 self.target_energy = max(0, self.target_energy - self.basic_attack_cost)
-                pygame.mixer.Sound.play(baphomet_ba_sfx_sfx)
+                pygame.mixer.Sound.play(baphomet_ba_sfx)
                 return True
         return False
 
@@ -163,7 +163,7 @@ class Baphomet(Boss):
             if self.idle_sound_playing and self.idle_sound_channel:
                 self.idle_sound_channel.stop()
                 self.idle_sound_playing = False
-            pygame.mixer.Sound.play(baphomet_death_sfx_sfx)
+            pygame.mixer.Sound.play(baphomet_death_sfx)
             return
 
         # Handle death animation
