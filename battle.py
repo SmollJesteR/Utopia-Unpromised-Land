@@ -40,8 +40,9 @@ def run_battle_loop():
     pygame.mixer.init()
 
     # Replace the static assignments with environment variables
-    PLAYER_TYPE = int(os.environ.get('HERO_TYPE', 1))
-    BOSS_TYPE = int(os.environ.get('BOSS_TYPE', 1))
+    # Ambil konfigurasi dari environment variable yang DISET oleh main.py/handler.py
+    PLAYER_TYPE = int(os.environ.get('HERO_TYPE', 1))  # default 1 (BloodReaper) jika tidak ada
+    BOSS_TYPE = int(os.environ.get('BOSS_TYPE', 1))    # default 1 jika tidak ada
     TREE_STAT_STRENGTH = int(os.environ.get('TREE_STAT_STRENGTH', 0))
     TREE_STAT_ENERGY = int(os.environ.get('TREE_STAT_ENERGY', 0))
     TREE_STAT_HEALTH = int(os.environ.get('TREE_STAT_HEALTH', 0))

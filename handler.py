@@ -15,9 +15,9 @@ def run_battle(hero_type=1, boss_type=1, tree_stats=None, enemy_id=None):
         # Set environment variables first
         os.environ['HERO_TYPE'] = str(hero_type)
         os.environ['BOSS_TYPE'] = str(boss_type)
-        os.environ['TREE_STAT_STRENGTH'] = str(tree_stats['strength'])
-        os.environ['TREE_STAT_ENERGY'] = str(tree_stats['energy']) 
-        os.environ['TREE_STAT_HEALTH'] = str(tree_stats['health'])
+        os.environ['TREE_STAT_STRENGTH'] = str(tree_stats.get('strength', 0))
+        os.environ['TREE_STAT_ENERGY'] = str(tree_stats.get('energy', 0))
+        os.environ['TREE_STAT_HEALTH'] = str(tree_stats.get('health', 0))
         os.environ['ENEMY_ID'] = str(enemy_id) if enemy_id else '0'
 
         import battle

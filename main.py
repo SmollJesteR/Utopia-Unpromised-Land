@@ -85,6 +85,12 @@ class Game:
         self.running = True
         self.zoom = 1.25  # >1 = zoom in, <1 = zoom out
         self.player_choice = player_choice  # Set dari argumen, bukan hardcoded
+        # Load stat tree dari file jika ada, jika tidak default 0
+        try:
+            with open("tree_stats.json", "r") as f:
+                self.tree_stats = json.load(f)
+        except Exception:
+            self.tree_stats = {'strength': 0, 'energy': 0, 'health': 0}  # <-- Tambah ini
 
         pygame.mixer.music.load('Assets/Music/Exploration/E1.ogg')  
         pygame.mixer.music.set_volume(0.5)         
@@ -294,34 +300,47 @@ class Game:
         if enemy_hit and enemy_hit.alive:
             enemy_hit.alive = False
             self.in_battle = True
-            
+
             # Fade out to loading screen
             self.smooth_transition(0, 255)
             self.current_loading_screen = random.choice(self.loading_screens)
             self.show_loading_screen()
-            pygame.time.wait(1000)  # Show loading screen for 1 second
+            pygame.time.wait(1000)
             pygame.mixer.music.stop()
 
-            # Start battle
+            # Kirim stat tree yang sudah diupdate
             encounter_value = random.choice([5, 15, 20] + [i for i in range(1, 21) if i not in [5, 15, 20]])
             boss_type = 3 if encounter_value == 5 else 2 if encounter_value == 15 else 1 if encounter_value == 20 else random.choice([4, 5])
-            
-            battle_result = run_battle(self.player.tipe, boss_type, tree_stats={'strength': 0, 'energy': 0, 'health': 0})
-            
-            # Fade out from battle
+
+            # --- Kirim stat tree yang sudah diupdate ---
+            battle_result = run_battle(self.player.tipe, boss_type, tree_stats=self.tree_stats)
+
+            # Setelah battle, cek apakah ada file stat_increased.json dan update self.tree_stats
+            try:
+                with open("stat_increased.json", "r") as f:
+                    data = json.load(f)
+                    stat = data.get("stat")
+                    amount = data.get("amount", 0)
+                    if stat in self.tree_stats:
+                        self.tree_stats[stat] += amount
+                        if self.tree_stats[stat] < 0:
+                            self.tree_stats[stat] = 0
+                # Simpan stat tree ke file agar persistent
+                with open("tree_stats.json", "w") as f:
+                    json.dump(self.tree_stats, f)
+                import os
+                os.remove("stat_increased.json")
+            except Exception:
+                pass
+
+            # ...existing code...
             self.smooth_transition(0, 255)
-            
-            # Show different loading screen for transition back
             self.current_loading_screen = random.choice(self.loading_screens)
             self.show_loading_screen()
             pygame.time.wait(1000)
-            
-            # Resume exploration
             pygame.mixer.music.load('Assets/Music/Exploration/E1.ogg')
             pygame.mixer.music.set_volume(0.5)
             pygame.mixer.music.play(-1)
-            
-            # Fade back to exploration
             self.smooth_transition(255, 0)
             self.in_battle = False
             self.current_loading_screen = None

@@ -239,6 +239,8 @@ class BloodReaper(Player):
         # Calculate damage first without multiplier
         base_damage = self.max_strength
         damage_total = int(base_damage * combo_multiplier)
+        # --- PATCH: cek jika Cyclops miss, jangan apply damage dua kali ---
+        # Hanya panggil take_damage sekali, dan gunakan hasilnya
         damage_done = self.attack_target.take_damage(damage_total)
 
         # Only increase multiplier after confirming damage was dealt
@@ -254,7 +256,6 @@ class BloodReaper(Player):
         if self.has_attacked and damage_done > 0:
             self.damage_multiplier *= 2
             self.max_strength = self.base_strength * self.damage_multiplier
-            # Show multiplier notification
             damage_numbers.append(DamageNumber(
                 self.rect.centerx - 100,
                 self.rect.y - 0,
@@ -266,11 +267,9 @@ class BloodReaper(Player):
         
         self.has_attacked = True  # Mark first attack as done
         
-        total_damage = int(base_damage * combo_multiplier)
-        damage_done = self.attack_target.take_damage(total_damage)
-        
+        # --- PATCH: hapus pemanggilan take_damage kedua, gunakan damage_done dari atas ---
         # Update this section to handle all boss types including Medusa
-        if isinstance(self.attack_target, (DeathSentry, Baphomet, Cyclops, DoomCultist, Medusa)):  # Add Medusa here
+        if isinstance(self.attack_target, (DeathSentry, Baphomet, Cyclops, DoomCultist, Medusa)):
             if damage_done == 0:
                 if isinstance(self.attack_target, Cyclops):
                     # Don't play shield hit sound for Cyclops dodge
@@ -285,21 +284,18 @@ class BloodReaper(Player):
                     pygame.mixer.Sound.play(deathsentryhit_sfx)
                 elif isinstance(self.attack_target, Baphomet):
                     pygame.mixer.Sound.play(baphemothit_sfx)
-                elif isinstance(self.attack_target, (Cyclops, DoomCultist, Medusa)):  # Add Medusa to use Cyclops hit sound
+                elif isinstance(self.attack_target, (Cyclops, DoomCultist, Medusa)):
                     pygame.mixer.Sound.play(cyclopshit_sfx)
                 
-                if not self.was_hit and self.combo_count > 0:  # Check combo conditions
+                if not self.was_hit and self.combo_count > 0:
                     next_combo = self.combo_count + 1
-                    if next_combo >= 2:  # Show combo notification for 2 or more hits
-                        # Add combo text notification
+                    if next_combo >= 2:
                         combo_text = ComboText(
                             self.rect.centerx - 100,
                             self.rect.centery - 150,
                             next_combo
                         )
                         damage_numbers.append(combo_text)
-                        
-                        # Play appropriate combo sound
                         if next_combo in [2, 3]:
                             pygame.mixer.Sound.play(basiccombo_sfx)
                         elif next_combo >= 4:
@@ -309,7 +305,7 @@ class BloodReaper(Player):
         damage_numbers.append(DamageNumber(
             self.attack_target.rect.centerx - 30,
             self.attack_target.rect.y - 30,
-            "MISS!" if damage_done == 0 else total_damage,
+            "MISS!" if damage_done == 0 else damage_total,
             (255, 255, 255) if damage_done == 0 else (255, 0, 0)
         ))
         
@@ -326,8 +322,6 @@ class BloodReaper(Player):
                         heal_amount,
                         (0, 255, 0)
                     ))
-                    
-            # Energy gain happens regardless of healing
             self.target_energy = min(self.max_energy, self.target_energy + 15)
         
         self.attack_applied = True
