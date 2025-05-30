@@ -310,7 +310,7 @@ class Game:
 
             # Kirim stat tree yang sudah diupdate
             encounter_value = random.choice([5, 15, 20] + [i for i in range(1, 21) if i not in [5, 15, 20]])
-            boss_type = 3 if encounter_value == 5 else 2 if encounter_value == 15 else 1 if encounter_value == 20 else random.choice([4, 5])
+            boss_type = 3 if encounter_value == 5 else 2 if encounter_value == 15 else 1 if encounter_value == 20 else random.choice([2, 3])
 
             # --- Kirim stat tree yang sudah diupdate ---
             battle_result = run_battle(self.player.tipe, boss_type, tree_stats=self.tree_stats)
