@@ -236,9 +236,9 @@ class PlayState(GameState):
         self.selected_character = 1
         self.characters = [
             Character("Ashen Warrior", "Assets/SplashArt/AW.png", (120, 200, 255), 
-                     "Ashen Warrior adalah penjaga biru yang setia,\nberjuang demi keadilan dan kedamaian di Utopia."),
+                     "Ashen Warrior is a Warden from Le Beaux Family,\n His Vigor is unmatched througout the Land."),
             Character("Blood Reaper", "Assets/SplashArt/BR.png", (255, 100, 100), 
-                     "Blood Reaper adalah pendekar merah yang kejam,\nmenebar teror demi ambisi dan kekuatan.")
+                     "Blood Reaper is an Ex-Mercenary Head from Hound Dogs Corps,\nHis Vicious Grit are Relentless in The Battlefield.")
         ]
         self.setup_ui()
     
